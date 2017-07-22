@@ -1,0 +1,1087 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<title>HMaster xref</title>
+<link type="text/css" rel="stylesheet" href="../../../../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../../../apidocs/org/apache/hadoop/hbase/master/HMaster.html">View Javadoc</a></div><pre>
+
+<a name="1" href="#1">1</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="2" href="#2">2</a>   <em class="jxr_javadoccomment"> * Copyright 2010 The Apache Software Foundation</em>
+<a name="3" href="#3">3</a>   <em class="jxr_javadoccomment"> *</em>
+<a name="4" href="#4">4</a>   <em class="jxr_javadoccomment"> * Licensed to the Apache Software Foundation (ASF) under one</em>
+<a name="5" href="#5">5</a>   <em class="jxr_javadoccomment"> * or more contributor license agreements.  See the NOTICE file</em>
+<a name="6" href="#6">6</a>   <em class="jxr_javadoccomment"> * distributed with this work for additional information</em>
+<a name="7" href="#7">7</a>   <em class="jxr_javadoccomment"> * regarding copyright ownership.  The ASF licenses this file</em>
+<a name="8" href="#8">8</a>   <em class="jxr_javadoccomment"> * to you under the Apache License, Version 2.0 (the</em>
+<a name="9" href="#9">9</a>   <em class="jxr_javadoccomment"> * "License"); you may not use this file except in compliance</em>
+<a name="10" href="#10">10</a>  <em class="jxr_javadoccomment"> * with the License.  You may obtain a copy of the License at</em>
+<a name="11" href="#11">11</a>  <em class="jxr_javadoccomment"> *</em>
+<a name="12" href="#12">12</a>  <em class="jxr_javadoccomment"> *     <a href="http://www.apache.org/licenses/LICENSE-2.0" target="alexandria_uri">http://www.apache.org/licenses/LICENSE-2.0</a></em>
+<a name="13" href="#13">13</a>  <em class="jxr_javadoccomment"> *</em>
+<a name="14" href="#14">14</a>  <em class="jxr_javadoccomment"> * Unless required by applicable law or agreed to in writing, software</em>
+<a name="15" href="#15">15</a>  <em class="jxr_javadoccomment"> * distributed under the License is distributed on an "AS IS" BASIS,</em>
+<a name="16" href="#16">16</a>  <em class="jxr_javadoccomment"> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</em>
+<a name="17" href="#17">17</a>  <em class="jxr_javadoccomment"> * See the License for the specific language governing permissions and</em>
+<a name="18" href="#18">18</a>  <em class="jxr_javadoccomment"> * limitations under the License.</em>
+<a name="19" href="#19">19</a>  <em class="jxr_javadoccomment"> */</em>
+<a name="20" href="#20">20</a>  <strong class="jxr_keyword">package</strong> org.apache.hadoop.hbase.master;
+<a name="21" href="#21">21</a>  
+<a name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
+<a name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> java.lang.reflect.Constructor;
+<a name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> java.lang.reflect.InvocationTargetException;
+<a name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> java.net.InetSocketAddress;
+<a name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.net.UnknownHostException;
+<a name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.util.ArrayList;
+<a name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.atomic.AtomicReference;
+<a name="31" href="#31">31</a>  
+<a name="32" href="#32">32</a>  <strong class="jxr_keyword">import</strong> org.apache.commons.logging.Log;
+<a name="33" href="#33">33</a>  <strong class="jxr_keyword">import</strong> org.apache.commons.logging.LogFactory;
+<a name="34" href="#34">34</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.conf.Configuration;
+<a name="35" href="#35">35</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.Chore;
+<a name="36" href="#36">36</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ClusterStatus;
+<a name="37" href="#37">37</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HColumnDescriptor;
+<a name="38" href="#38">38</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HConstants;
+<a name="39" href="#39">39</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HMsg;
+<a name="40" href="#40">40</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HRegionInfo;
+<a name="41" href="#41">41</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HServerAddress;
+<a name="42" href="#42">42</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HServerInfo;
+<a name="43" href="#43">43</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.HTableDescriptor;
+<a name="44" href="#44">44</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.MasterNotRunningException;
+<a name="45" href="#45">45</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.NotAllMetaRegionsOnlineException;
+<a name="46" href="#46">46</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.Server;
+<a name="47" href="#47">47</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.TableExistsException;
+<a name="48" href="#48">48</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.TableNotDisabledException;
+<a name="49" href="#49">49</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.TableNotFoundException;
+<a name="50" href="#50">50</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.UnknownRegionException;
+<a name="51" href="#51">51</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.catalog.CatalogTracker;
+<a name="52" href="#52">52</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.catalog.MetaEditor;
+<a name="53" href="#53">53</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.catalog.MetaReader;
+<a name="54" href="#54">54</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.client.HConnection;
+<a name="55" href="#55">55</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.client.HConnectionManager;
+<a name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.client.MetaScanner;
+<a name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.client.Result;
+<a name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.client.MetaScanner.MetaScannerVisitor;
+<a name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.executor.ExecutorService;
+<a name="60" href="#60">60</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.executor.ExecutorService.ExecutorType;
+<a name="61" href="#61">61</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ipc.HBaseRPC;
+<a name="62" href="#62">62</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ipc.HBaseRPCProtocolVersion;
+<a name="63" href="#63">63</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ipc.HBaseServer;
+<a name="64" href="#64">64</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ipc.HMasterInterface;
+<a name="65" href="#65">65</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.ipc.HMasterRegionInterface;
+<a name="66" href="#66">66</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.LoadBalancer.RegionPlan;
+<a name="67" href="#67">67</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.DeleteTableHandler;
+<a name="68" href="#68">68</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.DisableTableHandler;
+<a name="69" href="#69">69</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.EnableTableHandler;
+<a name="70" href="#70">70</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.ModifyTableHandler;
+<a name="71" href="#71">71</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.TableAddFamilyHandler;
+<a name="72" href="#72">72</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.TableDeleteFamilyHandler;
+<a name="73" href="#73">73</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.handler.TableModifyFamilyHandler;
+<a name="74" href="#74">74</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.master.metrics.MasterMetrics;
+<a name="75" href="#75">75</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.regionserver.HRegion;
+<a name="76" href="#76">76</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.replication.regionserver.Replication;
+<a name="77" href="#77">77</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.Bytes;
+<a name="78" href="#78">78</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.InfoServer;
+<a name="79" href="#79">79</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.Pair;
+<a name="80" href="#80">80</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.Sleeper;
+<a name="81" href="#81">81</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.Threads;
+<a name="82" href="#82">82</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.util.VersionInfo;
+<a name="83" href="#83">83</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.zookeeper.ClusterStatusTracker;
+<a name="84" href="#84">84</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.zookeeper.RegionServerTracker;
+<a name="85" href="#85">85</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
+<a name="86" href="#86">86</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.io.MapWritable;
+<a name="87" href="#87">87</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.io.Text;
+<a name="88" href="#88">88</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.ipc.RemoteException;
+<a name="89" href="#89">89</a>  <strong class="jxr_keyword">import</strong> org.apache.hadoop.net.DNS;
+<a name="90" href="#90">90</a>  <strong class="jxr_keyword">import</strong> org.apache.zookeeper.KeeperException;
+<a name="91" href="#91">91</a>  <strong class="jxr_keyword">import</strong> org.apache.zookeeper.Watcher;
+<a name="92" href="#92">92</a>  
+<a name="93" href="#93">93</a>  <em class="jxr_javadoccomment">/**</em>
+<a name="94" href="#94">94</a>  <em class="jxr_javadoccomment"> * HMaster is the "master server" for HBase. An HBase cluster has one active</em>
+<a name="95" href="#95">95</a>  <em class="jxr_javadoccomment"> * master.  If many masters are started, all compete.  Whichever wins goes on to</em>
+<a name="96" href="#96">96</a>  <em class="jxr_javadoccomment"> * run the cluster.  All others park themselves in their constructor until</em>
+<a name="97" href="#97">97</a>  <em class="jxr_javadoccomment"> * master or cluster shutdown or until the active master loses its lease in</em>
+<a name="98" href="#98">98</a>  <em class="jxr_javadoccomment"> * zookeeper.  Thereafter, all running master jostle to take over master role.</em>
+<a name="99" href="#99">99</a>  <em class="jxr_javadoccomment"> *</em>
+<a name="100" href="#100">100</a> <em class="jxr_javadoccomment"> * &lt;p&gt;The Master can be asked shutdown the cluster. See {@link #shutdown()}.  In</em>
+<a name="101" href="#101">101</a> <em class="jxr_javadoccomment"> * this case it will tell all regionservers to go down and then wait on them</em>
+<a name="102" href="#102">102</a> <em class="jxr_javadoccomment"> * all reporting in that they are down.  This master will then shut itself down.</em>
+<a name="103" href="#103">103</a> <em class="jxr_javadoccomment"> *</em>
+<a name="104" href="#104">104</a> <em class="jxr_javadoccomment"> * &lt;p&gt;You can also shutdown just this master.  Call {@link #stopMaster()}.</em>
+<a name="105" href="#105">105</a> <em class="jxr_javadoccomment"> *</em>
+<a name="106" href="#106">106</a> <em class="jxr_javadoccomment"> * @see HMasterInterface</em>
+<a name="107" href="#107">107</a> <em class="jxr_javadoccomment"> * @see HMasterRegionInterface</em>
+<a name="108" href="#108">108</a> <em class="jxr_javadoccomment"> * @see Watcher</em>
+<a name="109" href="#109">109</a> <em class="jxr_javadoccomment"> */</em>
+<a name="110" href="#110">110</a> <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../org/apache/hadoop/hbase/master/HMaster.html">HMaster</a> <strong class="jxr_keyword">extends</strong> Thread
+<a name="111" href="#111">111</a> implements HMasterInterface, HMasterRegionInterface, MasterServices, <a href="../../../../../org/apache/hadoop/hbase/Server.html">Server</a> {
+<a name="112" href="#112">112</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Log LOG = LogFactory.getLog(HMaster.<strong class="jxr_keyword">class</strong>.getName());
+<a name="113" href="#113">113</a> 
+<a name="114" href="#114">114</a>   <em class="jxr_comment">// MASTER is name of the webapp and the attribute name used stuffing this</em>
+<a name="115" href="#115">115</a>   <em class="jxr_comment">//instance into web context.</em>
+<a name="116" href="#116">116</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String MASTER = <span class="jxr_string">"master"</span>;
+<a name="117" href="#117">117</a> 
+<a name="118" href="#118">118</a>   <em class="jxr_comment">// The configuration for the Master</em>
+<a name="119" href="#119">119</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Configuration conf;
+<a name="120" href="#120">120</a>   <em class="jxr_comment">// server for the web ui</em>
+<a name="121" href="#121">121</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/util/InfoServer.html">InfoServer</a> infoServer;
+<a name="122" href="#122">122</a> 
+<a name="123" href="#123">123</a>   <em class="jxr_comment">// Our zk client.</em>
+<a name="124" href="#124">124</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ZooKeeperWatcher.html">ZooKeeperWatcher</a> zooKeeper;
+<a name="125" href="#125">125</a>   <em class="jxr_comment">// Manager and zk listener for master election</em>
+<a name="126" href="#126">126</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ActiveMasterManager.html">ActiveMasterManager</a> activeMasterManager;
+<a name="127" href="#127">127</a>   <em class="jxr_comment">// Region server tracker</em>
+<a name="128" href="#128">128</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/RegionServerTracker.html">RegionServerTracker</a> regionServerTracker;
+<a name="129" href="#129">129</a> 
+<a name="130" href="#130">130</a>   <em class="jxr_comment">// RPC server for the HMaster</em>
+<a name="131" href="#131">131</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/ipc/HBaseServer.html">HBaseServer</a> rpcServer;
+<a name="132" href="#132">132</a>   <em class="jxr_comment">// Address of the HMaster</em>
+<a name="133" href="#133">133</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a> address;
+<a name="134" href="#134">134</a>   <em class="jxr_comment">// Metrics for the HMaster</em>
+<a name="135" href="#135">135</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/master/metrics/MasterMetrics.html">MasterMetrics</a> metrics;
+<a name="136" href="#136">136</a>   <em class="jxr_comment">// file system manager for the master FS operations</em>
+<a name="137" href="#137">137</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/master/MasterFileSystem.html">MasterFileSystem</a> fileSystemManager;
+<a name="138" href="#138">138</a> 
+<a name="139" href="#139">139</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/client/HConnection.html">HConnection</a> connection;
+<a name="140" href="#140">140</a> 
+<a name="141" href="#141">141</a>   <em class="jxr_comment">// server manager to deal with region server info</em>
+<a name="142" href="#142">142</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ServerManager.html">ServerManager</a> serverManager;
+<a name="143" href="#143">143</a> 
+<a name="144" href="#144">144</a>   <em class="jxr_comment">// manager of assignment nodes in zookeeper</em>
+<a name="145" href="#145">145</a>   <a href="../../../../../org/apache/hadoop/hbase/master/AssignmentManager.html">AssignmentManager</a> assignmentManager;
+<a name="146" href="#146">146</a>   <em class="jxr_comment">// manager of catalog regions</em>
+<a name="147" href="#147">147</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/catalog/CatalogTracker.html">CatalogTracker</a> catalogTracker;
+<a name="148" href="#148">148</a>   <em class="jxr_comment">// Cluster status zk tracker and local setter</em>
+<a name="149" href="#149">149</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ClusterStatusTracker.html">ClusterStatusTracker</a> clusterStatusTracker;
+<a name="150" href="#150">150</a> 
+<a name="151" href="#151">151</a>   <em class="jxr_comment">// This flag is for stopping this Master instance.  Its set when we are</em>
+<a name="152" href="#152">152</a>   <em class="jxr_comment">// stopping or aborting</em>
+<a name="153" href="#153">153</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">boolean</strong> stopped = false;
+<a name="154" href="#154">154</a>   <em class="jxr_comment">// Set on abort -- usually failure of our zk session.</em>
+<a name="155" href="#155">155</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">boolean</strong> abort = false;
+<a name="156" href="#156">156</a>   <em class="jxr_comment">// flag set after we become the active master (used for testing)</em>
+<a name="157" href="#157">157</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">boolean</strong> isActiveMaster = false;
+<a name="158" href="#158">158</a>   <em class="jxr_comment">// flag set after we complete initialization once active (used for testing)</em>
+<a name="159" href="#159">159</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">boolean</strong> initialized = false;
+<a name="160" href="#160">160</a> 
+<a name="161" href="#161">161</a>   <em class="jxr_comment">// Instance of the hbase executor service.</em>
+<a name="162" href="#162">162</a>   <a href="../../../../../org/apache/hadoop/hbase/executor/ExecutorService.html">ExecutorService</a> executorService;
+<a name="163" href="#163">163</a> 
+<a name="164" href="#164">164</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/master/LoadBalancer.html">LoadBalancer</a> balancer = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/LoadBalancer.html">LoadBalancer</a>();
+<a name="165" href="#165">165</a>   <strong class="jxr_keyword">private</strong> Thread balancerChore;
+<a name="166" href="#166">166</a>   <em class="jxr_comment">// If 'true', the balancer is 'on'.  If 'false', the balancer will not run.</em>
+<a name="167" href="#167">167</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">boolean</strong> balanceSwitch = <strong class="jxr_keyword">true</strong>;
+<a name="168" href="#168">168</a> 
+<a name="169" href="#169">169</a>   <strong class="jxr_keyword">private</strong> Thread catalogJanitorChore;
+<a name="170" href="#170">170</a>   <strong class="jxr_keyword">private</strong> <a href="../../../../../org/apache/hadoop/hbase/master/LogCleaner.html">LogCleaner</a> logCleaner;
+<a name="171" href="#171">171</a> 
+<a name="172" href="#172">172</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="173" href="#173">173</a> <em class="jxr_javadoccomment">   * Initializes the HMaster. The steps are as follows:</em>
+<a name="174" href="#174">174</a> <em class="jxr_javadoccomment">   * &lt;p&gt;</em>
+<a name="175" href="#175">175</a> <em class="jxr_javadoccomment">   * &lt;ol&gt;</em>
+<a name="176" href="#176">176</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Initialize HMaster RPC and address</em>
+<a name="177" href="#177">177</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Connect to ZooKeeper.</em>
+<a name="178" href="#178">178</a> <em class="jxr_javadoccomment">   * &lt;/ol&gt;</em>
+<a name="179" href="#179">179</a> <em class="jxr_javadoccomment">   * &lt;p&gt;</em>
+<a name="180" href="#180">180</a> <em class="jxr_javadoccomment">   * Remaining steps of initialization occur in {@link #run()} so that they</em>
+<a name="181" href="#181">181</a> <em class="jxr_javadoccomment">   * run in their own thread rather than within the context of the constructor.</em>
+<a name="182" href="#182">182</a> <em class="jxr_javadoccomment">   * @throws InterruptedException</em>
+<a name="183" href="#183">183</a> <em class="jxr_javadoccomment">   */</em>
+<a name="184" href="#184">184</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/master/HMaster.html">HMaster</a>(<strong class="jxr_keyword">final</strong> Configuration conf)
+<a name="185" href="#185">185</a>   <strong class="jxr_keyword">throws</strong> IOException, KeeperException, InterruptedException {
+<a name="186" href="#186">186</a>     <strong class="jxr_keyword">this</strong>.conf = conf;
+<a name="187" href="#187">187</a> 
+<a name="188" href="#188">188</a>     <em class="jxr_comment">/*</em>
+<a name="189" href="#189">189</a> <em class="jxr_comment">     * Determine address and initialize RPC server (but do not start).</em>
+<a name="190" href="#190">190</a> <em class="jxr_comment">     * The RPC server ports can be ephemeral. Create a ZKW instance.</em>
+<a name="191" href="#191">191</a> <em class="jxr_comment">     */</em>
+<a name="192" href="#192">192</a>     <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a> a = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a>(getMyAddress(<strong class="jxr_keyword">this</strong>.conf));
+<a name="193" href="#193">193</a>     <strong class="jxr_keyword">int</strong> numHandlers = conf.getInt(<span class="jxr_string">"hbase.regionserver.handler.count"</span>, 10);
+<a name="194" href="#194">194</a>     <strong class="jxr_keyword">this</strong>.rpcServer = HBaseRPC.getServer(<strong class="jxr_keyword">this</strong>,
+<a name="195" href="#195">195</a>       <strong class="jxr_keyword">new</strong> Class&lt;?&gt;[]{HMasterInterface.<strong class="jxr_keyword">class</strong>, HMasterRegionInterface.<strong class="jxr_keyword">class</strong>},
+<a name="196" href="#196">196</a>       a.getBindAddress(), a.getPort(),
+<a name="197" href="#197">197</a>       numHandlers,
+<a name="198" href="#198">198</a>       0, <em class="jxr_comment">// we dont use high priority handlers in master</em>
+<a name="199" href="#199">199</a>       false, conf,
+<a name="200" href="#200">200</a>       0); <em class="jxr_comment">// this is a DNC w/o high priority handlers</em>
+<a name="201" href="#201">201</a>     <strong class="jxr_keyword">this</strong>.address = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a>(rpcServer.getListenerAddress());
+<a name="202" href="#202">202</a> 
+<a name="203" href="#203">203</a>     <em class="jxr_comment">// set the thread name now we have an address</em>
+<a name="204" href="#204">204</a>     setName(MASTER + <span class="jxr_string">"-"</span> + <strong class="jxr_keyword">this</strong>.address);
+<a name="205" href="#205">205</a> 
+<a name="206" href="#206">206</a>     Replication.decorateMasterConfiguration(<strong class="jxr_keyword">this</strong>.conf);
+<a name="207" href="#207">207</a> 
+<a name="208" href="#208">208</a>     <strong class="jxr_keyword">this</strong>.rpcServer.startThreads();
+<a name="209" href="#209">209</a> 
+<a name="210" href="#210">210</a>     <em class="jxr_comment">// Hack! Maps DFSClient =&gt; Master for logs.  HDFS made this</em>
+<a name="211" href="#211">211</a>     <em class="jxr_comment">// config param for task trackers, but we can piggyback off of it.</em>
+<a name="212" href="#212">212</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.conf.get(<span class="jxr_string">"mapred.task.id"</span>) == <strong class="jxr_keyword">null</strong>) {
+<a name="213" href="#213">213</a>       <strong class="jxr_keyword">this</strong>.conf.set(<span class="jxr_string">"mapred.task.id"</span>, <span class="jxr_string">"hb_m_"</span> + <strong class="jxr_keyword">this</strong>.address.toString() +
+<a name="214" href="#214">214</a>         <span class="jxr_string">"_"</span> + System.currentTimeMillis());
+<a name="215" href="#215">215</a>     }
+<a name="216" href="#216">216</a> 
+<a name="217" href="#217">217</a>     <strong class="jxr_keyword">this</strong>.zooKeeper = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ZooKeeperWatcher.html">ZooKeeperWatcher</a>(conf, MASTER + <span class="jxr_string">":"</span> +
+<a name="218" href="#218">218</a>         address.getPort(), <strong class="jxr_keyword">this</strong>);
+<a name="219" href="#219">219</a> 
+<a name="220" href="#220">220</a>     <strong class="jxr_keyword">this</strong>.metrics = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/metrics/MasterMetrics.html">MasterMetrics</a>(getServerName());
+<a name="221" href="#221">221</a>   }
+<a name="222" href="#222">222</a> 
+<a name="223" href="#223">223</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="224" href="#224">224</a> <em class="jxr_javadoccomment">   * Stall startup if we are designated a backup master; i.e. we want someone</em>
+<a name="225" href="#225">225</a> <em class="jxr_javadoccomment">   * else to become the master before proceeding.</em>
+<a name="226" href="#226">226</a> <em class="jxr_javadoccomment">   * @param c</em>
+<a name="227" href="#227">227</a> <em class="jxr_javadoccomment">   * @param amm</em>
+<a name="228" href="#228">228</a> <em class="jxr_javadoccomment">   * @throws InterruptedException</em>
+<a name="229" href="#229">229</a> <em class="jxr_javadoccomment">   */</em>
+<a name="230" href="#230">230</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> stallIfBackupMaster(<strong class="jxr_keyword">final</strong> Configuration c,
+<a name="231" href="#231">231</a>       <strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ActiveMasterManager.html">ActiveMasterManager</a> amm)
+<a name="232" href="#232">232</a>   <strong class="jxr_keyword">throws</strong> InterruptedException {
+<a name="233" href="#233">233</a>     <em class="jxr_comment">// If we're a backup master, stall until a primary to writes his address</em>
+<a name="234" href="#234">234</a>     <strong class="jxr_keyword">if</strong> (!c.getBoolean(HConstants.MASTER_TYPE_BACKUP,
+<a name="235" href="#235">235</a>       HConstants.DEFAULT_MASTER_TYPE_BACKUP)) {
+<a name="236" href="#236">236</a>       <strong class="jxr_keyword">return</strong>;
+<a name="237" href="#237">237</a>     }
+<a name="238" href="#238">238</a>     LOG.debug(<span class="jxr_string">"HMaster started in backup mode.  "</span> +
+<a name="239" href="#239">239</a>       <span class="jxr_string">"Stalling until master znode is written."</span>);
+<a name="240" href="#240">240</a>     <em class="jxr_comment">// This will only be a minute or so while the cluster starts up,</em>
+<a name="241" href="#241">241</a>     <em class="jxr_comment">// so don't worry about setting watches on the parent znode</em>
+<a name="242" href="#242">242</a>     <strong class="jxr_keyword">while</strong> (!amm.isActiveMaster()) {
+<a name="243" href="#243">243</a>       LOG.debug(<span class="jxr_string">"Waiting for master address ZNode to be written "</span> +
+<a name="244" href="#244">244</a>         <span class="jxr_string">"(Also watching cluster state node)"</span>);
+<a name="245" href="#245">245</a>       Thread.sleep(c.getInt(<span class="jxr_string">"zookeeper.session.timeout"</span>, 180 * 1000));
+<a name="246" href="#246">246</a>     }
+<a name="247" href="#247">247</a>   }
+<a name="248" href="#248">248</a> 
+<a name="249" href="#249">249</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="250" href="#250">250</a> <em class="jxr_javadoccomment">   * Main processing loop for the HMaster.</em>
+<a name="251" href="#251">251</a> <em class="jxr_javadoccomment">   * &lt;ol&gt;</em>
+<a name="252" href="#252">252</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Block until becoming active master</em>
+<a name="253" href="#253">253</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Finish initialization via {@link #finishInitialization()}</em>
+<a name="254" href="#254">254</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Enter loop until we are stopped</em>
+<a name="255" href="#255">255</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Stop services and perform cleanup once stopped</em>
+<a name="256" href="#256">256</a> <em class="jxr_javadoccomment">   * &lt;/ol&gt;</em>
+<a name="257" href="#257">257</a> <em class="jxr_javadoccomment">   */</em>
+<a name="258" href="#258">258</a>   @Override
+<a name="259" href="#259">259</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
+<a name="260" href="#260">260</a>     <strong class="jxr_keyword">try</strong> {
+<a name="261" href="#261">261</a>       <em class="jxr_comment">/*</em>
+<a name="262" href="#262">262</a> <em class="jxr_comment">       * Block on becoming the active master.</em>
+<a name="263" href="#263">263</a> <em class="jxr_comment">       *</em>
+<a name="264" href="#264">264</a> <em class="jxr_comment">       * We race with other masters to write our address into ZooKeeper.  If we</em>
+<a name="265" href="#265">265</a> <em class="jxr_comment">       * succeed, we are the primary/active master and finish initialization.</em>
+<a name="266" href="#266">266</a> <em class="jxr_comment">       *</em>
+<a name="267" href="#267">267</a> <em class="jxr_comment">       * If we do not succeed, there is another active master and we should</em>
+<a name="268" href="#268">268</a> <em class="jxr_comment">       * now wait until it dies to try and become the next active master.  If we</em>
+<a name="269" href="#269">269</a> <em class="jxr_comment">       * do not succeed on our first attempt, this is no longer a cluster startup.</em>
+<a name="270" href="#270">270</a> <em class="jxr_comment">       */</em>
+<a name="271" href="#271">271</a>       <strong class="jxr_keyword">this</strong>.activeMasterManager = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ActiveMasterManager.html">ActiveMasterManager</a>(zooKeeper, address, <strong class="jxr_keyword">this</strong>);
+<a name="272" href="#272">272</a>       <strong class="jxr_keyword">this</strong>.zooKeeper.registerListener(activeMasterManager);
+<a name="273" href="#273">273</a>       stallIfBackupMaster(<strong class="jxr_keyword">this</strong>.conf, <strong class="jxr_keyword">this</strong>.activeMasterManager);
+<a name="274" href="#274">274</a>       <strong class="jxr_keyword">this</strong>.activeMasterManager.blockUntilBecomingActiveMaster();
+<a name="275" href="#275">275</a>       <em class="jxr_comment">// We are either the active master or we were asked to shutdown</em>
+<a name="276" href="#276">276</a>       <strong class="jxr_keyword">if</strong> (!<strong class="jxr_keyword">this</strong>.stopped) {
+<a name="277" href="#277">277</a>         finishInitialization();
+<a name="278" href="#278">278</a>         loop();
+<a name="279" href="#279">279</a>       }
+<a name="280" href="#280">280</a>     } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a name="281" href="#281">281</a>       abort(<span class="jxr_string">"Unhandled exception. Starting shutdown."</span>, t);
+<a name="282" href="#282">282</a>     } <strong class="jxr_keyword">finally</strong> {
+<a name="283" href="#283">283</a>       stopChores();
+<a name="284" href="#284">284</a>       <em class="jxr_comment">// Wait for all the remaining region servers to report in IFF we were</em>
+<a name="285" href="#285">285</a>       <em class="jxr_comment">// running a cluster shutdown AND we were NOT aborting.</em>
+<a name="286" href="#286">286</a>       <strong class="jxr_keyword">if</strong> (!<strong class="jxr_keyword">this</strong>.abort &amp;&amp; <strong class="jxr_keyword">this</strong>.serverManager != <strong class="jxr_keyword">null</strong> &amp;&amp;
+<a name="287" href="#287">287</a>           <strong class="jxr_keyword">this</strong>.serverManager.isClusterShutdown()) {
+<a name="288" href="#288">288</a>         <strong class="jxr_keyword">this</strong>.serverManager.letRegionServersShutdown();
+<a name="289" href="#289">289</a>       }
+<a name="290" href="#290">290</a>       stopServiceThreads();
+<a name="291" href="#291">291</a>       <em class="jxr_comment">// Stop services started for both backup and active masters</em>
+<a name="292" href="#292">292</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.activeMasterManager != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.activeMasterManager.stop();
+<a name="293" href="#293">293</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.catalogTracker != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.catalogTracker.stop();
+<a name="294" href="#294">294</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.serverManager != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.serverManager.stop();
+<a name="295" href="#295">295</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.assignmentManager != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.assignmentManager.stop();
+<a name="296" href="#296">296</a>       HConnectionManager.deleteConnection(<strong class="jxr_keyword">this</strong>.conf, <strong class="jxr_keyword">true</strong>);
+<a name="297" href="#297">297</a>       <strong class="jxr_keyword">this</strong>.zooKeeper.close();
+<a name="298" href="#298">298</a>     }
+<a name="299" href="#299">299</a>     LOG.info(<span class="jxr_string">"HMaster main thread exiting"</span>);
+<a name="300" href="#300">300</a>   }
+<a name="301" href="#301">301</a> 
+<a name="302" href="#302">302</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> loop() {
+<a name="303" href="#303">303</a>     <em class="jxr_comment">// Check if we should stop every second.</em>
+<a name="304" href="#304">304</a>     <a href="../../../../../org/apache/hadoop/hbase/util/Sleeper.html">Sleeper</a> sleeper = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/util/Sleeper.html">Sleeper</a>(1000, <strong class="jxr_keyword">this</strong>);
+<a name="305" href="#305">305</a>     <strong class="jxr_keyword">while</strong> (!<strong class="jxr_keyword">this</strong>.stopped) {
+<a name="306" href="#306">306</a>       sleeper.sleep();
+<a name="307" href="#307">307</a>     }
+<a name="308" href="#308">308</a>   }
+<a name="309" href="#309">309</a> 
+<a name="310" href="#310">310</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="311" href="#311">311</a> <em class="jxr_javadoccomment">   * Finish initialization of HMaster after becoming the primary master.</em>
+<a name="312" href="#312">312</a> <em class="jxr_javadoccomment">   *</em>
+<a name="313" href="#313">313</a> <em class="jxr_javadoccomment">   * &lt;ol&gt;</em>
+<a name="314" href="#314">314</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Initialize master components - file system manager, server manager,</em>
+<a name="315" href="#315">315</a> <em class="jxr_javadoccomment">   *     assignment manager, region server tracker, catalog tracker, etc&lt;/li&gt;</em>
+<a name="316" href="#316">316</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Start necessary service threads - rpc server, info server,</em>
+<a name="317" href="#317">317</a> <em class="jxr_javadoccomment">   *     executor services, etc&lt;/li&gt;</em>
+<a name="318" href="#318">318</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Set cluster as UP in ZooKeeper&lt;/li&gt;</em>
+<a name="319" href="#319">319</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Wait for RegionServers to check-in&lt;/li&gt;</em>
+<a name="320" href="#320">320</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Split logs and perform data recovery, if necessary&lt;/li&gt;</em>
+<a name="321" href="#321">321</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Ensure assignment of root and meta regions&lt;li&gt;</em>
+<a name="322" href="#322">322</a> <em class="jxr_javadoccomment">   * &lt;li&gt;Handle either fresh cluster start or master failover&lt;/li&gt;</em>
+<a name="323" href="#323">323</a> <em class="jxr_javadoccomment">   * &lt;/ol&gt;</em>
+<a name="324" href="#324">324</a> <em class="jxr_javadoccomment">   *</em>
+<a name="325" href="#325">325</a> <em class="jxr_javadoccomment">   * @throws IOException</em>
+<a name="326" href="#326">326</a> <em class="jxr_javadoccomment">   * @throws InterruptedException</em>
+<a name="327" href="#327">327</a> <em class="jxr_javadoccomment">   * @throws KeeperException</em>
+<a name="328" href="#328">328</a> <em class="jxr_javadoccomment">   */</em>
+<a name="329" href="#329">329</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> finishInitialization()
+<a name="330" href="#330">330</a>   <strong class="jxr_keyword">throws</strong> IOException, InterruptedException, KeeperException {
+<a name="331" href="#331">331</a> 
+<a name="332" href="#332">332</a>     isActiveMaster = <strong class="jxr_keyword">true</strong>;
+<a name="333" href="#333">333</a> 
+<a name="334" href="#334">334</a>     <em class="jxr_comment">/*</em>
+<a name="335" href="#335">335</a> <em class="jxr_comment">     * We are active master now... go initialize components we need to run.</em>
+<a name="336" href="#336">336</a> <em class="jxr_comment">     * Note, there may be dross in zk from previous runs; it'll get addressed</em>
+<a name="337" href="#337">337</a> <em class="jxr_comment">     * below after we determine if cluster startup or failover.</em>
+<a name="338" href="#338">338</a> <em class="jxr_comment">     */</em>
+<a name="339" href="#339">339</a> 
+<a name="340" href="#340">340</a>     <em class="jxr_comment">// TODO: Do this using Dependency Injection, using PicoContainer, Guice or Spring.</em>
+<a name="341" href="#341">341</a>     <strong class="jxr_keyword">this</strong>.fileSystemManager = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/MasterFileSystem.html">MasterFileSystem</a>(<strong class="jxr_keyword">this</strong>, metrics);
+<a name="342" href="#342">342</a>     <strong class="jxr_keyword">this</strong>.connection = HConnectionManager.getConnection(conf);
+<a name="343" href="#343">343</a>     <strong class="jxr_keyword">this</strong>.executorService = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/executor/ExecutorService.html">ExecutorService</a>(getServerName());
+<a name="344" href="#344">344</a> 
+<a name="345" href="#345">345</a>     <strong class="jxr_keyword">this</strong>.serverManager = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ServerManager.html">ServerManager</a>(<strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>, metrics);
+<a name="346" href="#346">346</a> 
+<a name="347" href="#347">347</a>     <strong class="jxr_keyword">this</strong>.catalogTracker = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/catalog/CatalogTracker.html">CatalogTracker</a>(<strong class="jxr_keyword">this</strong>.zooKeeper, <strong class="jxr_keyword">this</strong>.connection,
+<a name="348" href="#348">348</a>       <strong class="jxr_keyword">this</strong>, conf.getInt(<span class="jxr_string">"hbase.master.catalog.timeout"</span>, Integer.MAX_VALUE));
+<a name="349" href="#349">349</a>     <strong class="jxr_keyword">this</strong>.catalogTracker.start();
+<a name="350" href="#350">350</a> 
+<a name="351" href="#351">351</a>     <strong class="jxr_keyword">this</strong>.assignmentManager = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/AssignmentManager.html">AssignmentManager</a>(<strong class="jxr_keyword">this</strong>, serverManager,
+<a name="352" href="#352">352</a>       <strong class="jxr_keyword">this</strong>.catalogTracker, <strong class="jxr_keyword">this</strong>.executorService);
+<a name="353" href="#353">353</a>     zooKeeper.registerListenerFirst(assignmentManager);
+<a name="354" href="#354">354</a> 
+<a name="355" href="#355">355</a>     <strong class="jxr_keyword">this</strong>.regionServerTracker = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/RegionServerTracker.html">RegionServerTracker</a>(zooKeeper, <strong class="jxr_keyword">this</strong>,
+<a name="356" href="#356">356</a>       <strong class="jxr_keyword">this</strong>.serverManager);
+<a name="357" href="#357">357</a>     <strong class="jxr_keyword">this</strong>.regionServerTracker.start();
+<a name="358" href="#358">358</a> 
+<a name="359" href="#359">359</a>     <em class="jxr_comment">// Set the cluster as up.  If new RSs, they'll be waiting on this before</em>
+<a name="360" href="#360">360</a>     <em class="jxr_comment">// going ahead with their startup.</em>
+<a name="361" href="#361">361</a>     <strong class="jxr_keyword">this</strong>.clusterStatusTracker = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ClusterStatusTracker.html">ClusterStatusTracker</a>(getZooKeeper(), <strong class="jxr_keyword">this</strong>);
+<a name="362" href="#362">362</a>     <strong class="jxr_keyword">this</strong>.clusterStatusTracker.start();
+<a name="363" href="#363">363</a>     <strong class="jxr_keyword">boolean</strong> wasUp = <strong class="jxr_keyword">this</strong>.clusterStatusTracker.isClusterUp();
+<a name="364" href="#364">364</a>     <strong class="jxr_keyword">if</strong> (!wasUp) <strong class="jxr_keyword">this</strong>.clusterStatusTracker.setClusterUp();
+<a name="365" href="#365">365</a> 
+<a name="366" href="#366">366</a>     LOG.info(<span class="jxr_string">"Server active/primary master; "</span> + <strong class="jxr_keyword">this</strong>.address +
+<a name="367" href="#367">367</a>       <span class="jxr_string">", sessionid=0x"</span> +
+<a name="368" href="#368">368</a>       Long.toHexString(<strong class="jxr_keyword">this</strong>.zooKeeper.getZooKeeper().getSessionId()) +
+<a name="369" href="#369">369</a>       <span class="jxr_string">", cluster-up flag was="</span> + wasUp);
+<a name="370" href="#370">370</a> 
+<a name="371" href="#371">371</a>     <em class="jxr_comment">// start up all service threads.</em>
+<a name="372" href="#372">372</a>     startServiceThreads();
+<a name="373" href="#373">373</a> 
+<a name="374" href="#374">374</a>     <em class="jxr_comment">// Wait for region servers to report in.  Returns count of regions.</em>
+<a name="375" href="#375">375</a>     <strong class="jxr_keyword">int</strong> regionCount = <strong class="jxr_keyword">this</strong>.serverManager.waitForRegionServers();
+<a name="376" href="#376">376</a> 
+<a name="377" href="#377">377</a>     <em class="jxr_comment">// TODO: Should do this in background rather than block master startup</em>
+<a name="378" href="#378">378</a>     <strong class="jxr_keyword">this</strong>.fileSystemManager.
+<a name="379" href="#379">379</a>       splitLogAfterStartup(<strong class="jxr_keyword">this</strong>.serverManager.getOnlineServers());
+<a name="380" href="#380">380</a> 
+<a name="381" href="#381">381</a>     <em class="jxr_comment">// Make sure root and meta assigned before proceeding.</em>
+<a name="382" href="#382">382</a>     assignRootAndMeta();
+<a name="383" href="#383">383</a> 
+<a name="384" href="#384">384</a>     <em class="jxr_comment">// Is this fresh start with no regions assigned or are we a master joining</em>
+<a name="385" href="#385">385</a>     <em class="jxr_comment">// an already-running cluster?  If regionsCount == 0, then for sure a</em>
+<a name="386" href="#386">386</a>     <em class="jxr_comment">// fresh start.  TOOD: Be fancier.  If regionsCount == 2, perhaps the</em>
+<a name="387" href="#387">387</a>     <em class="jxr_comment">// 2 are .META. and -ROOT- and we should fall into the fresh startup</em>
+<a name="388" href="#388">388</a>     <em class="jxr_comment">// branch below.  For now, do processFailover.</em>
+<a name="389" href="#389">389</a>     <strong class="jxr_keyword">if</strong> (regionCount == 0) {
+<a name="390" href="#390">390</a>       LOG.info(<span class="jxr_string">"Master startup proceeding: cluster startup"</span>);
+<a name="391" href="#391">391</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.cleanoutUnassigned();
+<a name="392" href="#392">392</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.assignAllUserRegions();
+<a name="393" href="#393">393</a>     } <strong class="jxr_keyword">else</strong> {
+<a name="394" href="#394">394</a>       LOG.info(<span class="jxr_string">"Master startup proceeding: master failover"</span>);
+<a name="395" href="#395">395</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.processFailover();
+<a name="396" href="#396">396</a>     }
+<a name="397" href="#397">397</a> 
+<a name="398" href="#398">398</a>     <em class="jxr_comment">// Start balancer and meta catalog janitor after meta and regions have</em>
+<a name="399" href="#399">399</a>     <em class="jxr_comment">// been assigned.</em>
+<a name="400" href="#400">400</a>     <strong class="jxr_keyword">this</strong>.balancerChore = getAndStartBalancerChore(<strong class="jxr_keyword">this</strong>);
+<a name="401" href="#401">401</a>     <strong class="jxr_keyword">this</strong>.catalogJanitorChore =
+<a name="402" href="#402">402</a>       Threads.setDaemonThreadRunning(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/CatalogJanitor.html">CatalogJanitor</a>(<strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>));
+<a name="403" href="#403">403</a> 
+<a name="404" href="#404">404</a>     LOG.info(<span class="jxr_string">"Master has completed initialization"</span>);
+<a name="405" href="#405">405</a>     initialized = <strong class="jxr_keyword">true</strong>;
+<a name="406" href="#406">406</a>   }
+<a name="407" href="#407">407</a> 
+<a name="408" href="#408">408</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="409" href="#409">409</a> <em class="jxr_javadoccomment">   * Check &lt;code&gt;-ROOT-&lt;/code&gt; and &lt;code&gt;.META.&lt;/code&gt; are assigned.  If not,</em>
+<a name="410" href="#410">410</a> <em class="jxr_javadoccomment">   * assign them.</em>
+<a name="411" href="#411">411</a> <em class="jxr_javadoccomment">   * @throws InterruptedException</em>
+<a name="412" href="#412">412</a> <em class="jxr_javadoccomment">   * @throws IOException</em>
+<a name="413" href="#413">413</a> <em class="jxr_javadoccomment">   * @throws KeeperException</em>
+<a name="414" href="#414">414</a> <em class="jxr_javadoccomment">   * @return Count of regions we assigned.</em>
+<a name="415" href="#415">415</a> <em class="jxr_javadoccomment">   */</em>
+<a name="416" href="#416">416</a>   <strong class="jxr_keyword">int</strong> assignRootAndMeta()
+<a name="417" href="#417">417</a>   <strong class="jxr_keyword">throws</strong> InterruptedException, IOException, KeeperException {
+<a name="418" href="#418">418</a>     <strong class="jxr_keyword">int</strong> assigned = 0;
+<a name="419" href="#419">419</a>     <strong class="jxr_keyword">long</strong> timeout = <strong class="jxr_keyword">this</strong>.conf.getLong(<span class="jxr_string">"hbase.catalog.verification.timeout"</span>, 1000);
+<a name="420" href="#420">420</a> 
+<a name="421" href="#421">421</a>     <em class="jxr_comment">// Work on ROOT region.  Is it in zk in transition?</em>
+<a name="422" href="#422">422</a>     <strong class="jxr_keyword">boolean</strong> rit = <strong class="jxr_keyword">this</strong>.assignmentManager.
+<a name="423" href="#423">423</a>       processRegionInTransitionAndBlockUntilAssigned(HRegionInfo.ROOT_REGIONINFO);
+<a name="424" href="#424">424</a>     <strong class="jxr_keyword">if</strong> (!catalogTracker.verifyRootRegionLocation(timeout)) {
+<a name="425" href="#425">425</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.assignRoot();
+<a name="426" href="#426">426</a>       <strong class="jxr_keyword">this</strong>.catalogTracker.waitForRoot();
+<a name="427" href="#427">427</a>       assigned++;
+<a name="428" href="#428">428</a>     }
+<a name="429" href="#429">429</a>     LOG.info(<span class="jxr_string">"-ROOT- assigned="</span> + assigned + <span class="jxr_string">", rit="</span> + rit +
+<a name="430" href="#430">430</a>       <span class="jxr_string">", location="</span> + catalogTracker.getRootLocation());
+<a name="431" href="#431">431</a> 
+<a name="432" href="#432">432</a>     <em class="jxr_comment">// Work on meta region</em>
+<a name="433" href="#433">433</a>     rit = <strong class="jxr_keyword">this</strong>.assignmentManager.
+<a name="434" href="#434">434</a>       processRegionInTransitionAndBlockUntilAssigned(HRegionInfo.FIRST_META_REGIONINFO);
+<a name="435" href="#435">435</a>     <strong class="jxr_keyword">if</strong> (!<strong class="jxr_keyword">this</strong>.catalogTracker.verifyMetaRegionLocation(timeout)) {
+<a name="436" href="#436">436</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.assignMeta();
+<a name="437" href="#437">437</a>       <strong class="jxr_keyword">this</strong>.catalogTracker.waitForMeta();
+<a name="438" href="#438">438</a>       <em class="jxr_comment">// Above check waits for general meta availability but this does not</em>
+<a name="439" href="#439">439</a>       <em class="jxr_comment">// guarantee that the transition has completed</em>
+<a name="440" href="#440">440</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.waitForAssignment(HRegionInfo.FIRST_META_REGIONINFO);
+<a name="441" href="#441">441</a>       assigned++;
+<a name="442" href="#442">442</a>     }
+<a name="443" href="#443">443</a>     LOG.info(<span class="jxr_string">".META. assigned="</span> + assigned + <span class="jxr_string">", rit="</span> + rit +
+<a name="444" href="#444">444</a>       <span class="jxr_string">", location="</span> + catalogTracker.getMetaLocation());
+<a name="445" href="#445">445</a>     <strong class="jxr_keyword">return</strong> assigned;
+<a name="446" href="#446">446</a>   }
+<a name="447" href="#447">447</a> 
+<a name="448" href="#448">448</a>   <em class="jxr_comment">/*</em>
+<a name="449" href="#449">449</a> <em class="jxr_comment">   * @return This masters' address.</em>
+<a name="450" href="#450">450</a> <em class="jxr_comment">   * @throws UnknownHostException</em>
+<a name="451" href="#451">451</a> <em class="jxr_comment">   */</em>
+<a name="452" href="#452">452</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> String getMyAddress(<strong class="jxr_keyword">final</strong> Configuration c)
+<a name="453" href="#453">453</a>   <strong class="jxr_keyword">throws</strong> UnknownHostException {
+<a name="454" href="#454">454</a>     <em class="jxr_comment">// Find out our address up in DNS.</em>
+<a name="455" href="#455">455</a>     String s = DNS.getDefaultHost(c.get(<span class="jxr_string">"hbase.master.dns.interface"</span>,<span class="jxr_string">"default"</span>),
+<a name="456" href="#456">456</a>       c.get(<span class="jxr_string">"hbase.master.dns.nameserver"</span>,<span class="jxr_string">"default"</span>));
+<a name="457" href="#457">457</a>     s += <span class="jxr_string">":"</span> + c.get(HConstants.MASTER_PORT,
+<a name="458" href="#458">458</a>         Integer.toString(HConstants.DEFAULT_MASTER_PORT));
+<a name="459" href="#459">459</a>     <strong class="jxr_keyword">return</strong> s;
+<a name="460" href="#460">460</a>   }
+<a name="461" href="#461">461</a> 
+<a name="462" href="#462">462</a>   <em class="jxr_javadoccomment">/**</em><em class="jxr_javadoccomment"> @return <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a> of the master server */</em>
+<a name="463" href="#463">463</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a> getMasterAddress() {
+<a name="464" href="#464">464</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.address;
+<a name="465" href="#465">465</a>   }
+<a name="466" href="#466">466</a> 
+<a name="467" href="#467">467</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">long</strong> getProtocolVersion(String protocol, <strong class="jxr_keyword">long</strong> clientVersion) {
+<a name="468" href="#468">468</a>     <strong class="jxr_keyword">return</strong> HBaseRPCProtocolVersion.versionID;
+<a name="469" href="#469">469</a>   }
+<a name="470" href="#470">470</a> 
+<a name="471" href="#471">471</a>   <em class="jxr_javadoccomment">/**</em><em class="jxr_javadoccomment"> @return <a href="../../../../../org/apache/hadoop/hbase/util/InfoServer.html">InfoServer</a> object. Maybe null.*/</em>
+<a name="472" href="#472">472</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/util/InfoServer.html">InfoServer</a> getInfoServer() {
+<a name="473" href="#473">473</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.infoServer;
+<a name="474" href="#474">474</a>   }
+<a name="475" href="#475">475</a> 
+<a name="476" href="#476">476</a>   @Override
+<a name="477" href="#477">477</a>   <strong class="jxr_keyword">public</strong> Configuration getConfiguration() {
+<a name="478" href="#478">478</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.conf;
+<a name="479" href="#479">479</a>   }
+<a name="480" href="#480">480</a> 
+<a name="481" href="#481">481</a>   @Override
+<a name="482" href="#482">482</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/master/ServerManager.html">ServerManager</a> getServerManager() {
+<a name="483" href="#483">483</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.serverManager;
+<a name="484" href="#484">484</a>   }
+<a name="485" href="#485">485</a> 
+<a name="486" href="#486">486</a>   @Override
+<a name="487" href="#487">487</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/executor/ExecutorService.html">ExecutorService</a> getExecutorService() {
+<a name="488" href="#488">488</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.executorService;
+<a name="489" href="#489">489</a>   }
+<a name="490" href="#490">490</a> 
+<a name="491" href="#491">491</a>   @Override
+<a name="492" href="#492">492</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/master/MasterFileSystem.html">MasterFileSystem</a> getMasterFileSystem() {
+<a name="493" href="#493">493</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.fileSystemManager;
+<a name="494" href="#494">494</a>   }
+<a name="495" href="#495">495</a> 
+<a name="496" href="#496">496</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="497" href="#497">497</a> <em class="jxr_javadoccomment">   * Get the ZK wrapper object - needed by master_jsp.java</em>
+<a name="498" href="#498">498</a> <em class="jxr_javadoccomment">   * @return the zookeeper wrapper</em>
+<a name="499" href="#499">499</a> <em class="jxr_javadoccomment">   */</em>
+<a name="500" href="#500">500</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ZooKeeperWatcher.html">ZooKeeperWatcher</a> getZooKeeperWatcher() {
+<a name="501" href="#501">501</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.zooKeeper;
+<a name="502" href="#502">502</a>   }
+<a name="503" href="#503">503</a> 
+<a name="504" href="#504">504</a>   <em class="jxr_comment">/*</em>
+<a name="505" href="#505">505</a> <em class="jxr_comment">   * Start up all services. If any of these threads gets an unhandled exception</em>
+<a name="506" href="#506">506</a> <em class="jxr_comment">   * then they just die with a logged message.  This should be fine because</em>
+<a name="507" href="#507">507</a> <em class="jxr_comment">   * in general, we do not expect the master to get such unhandled exceptions</em>
+<a name="508" href="#508">508</a> <em class="jxr_comment">   *  as OOMEs; it should be lightly loaded. See what HRegionServer does if</em>
+<a name="509" href="#509">509</a> <em class="jxr_comment">   *  need to install an unexpected exception handler.</em>
+<a name="510" href="#510">510</a> <em class="jxr_comment">   */</em>
+<a name="511" href="#511">511</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> startServiceThreads() {
+<a name="512" href="#512">512</a>     <strong class="jxr_keyword">try</strong> {
+<a name="513" href="#513">513</a>       <em class="jxr_comment">// Start the executor service pools</em>
+<a name="514" href="#514">514</a>       <strong class="jxr_keyword">this</strong>.executorService.startExecutorService(ExecutorType.MASTER_OPEN_REGION,
+<a name="515" href="#515">515</a>         conf.getInt(<span class="jxr_string">"hbase.master.executor.openregion.threads"</span>, 5));
+<a name="516" href="#516">516</a>       <strong class="jxr_keyword">this</strong>.executorService.startExecutorService(ExecutorType.MASTER_CLOSE_REGION,
+<a name="517" href="#517">517</a>         conf.getInt(<span class="jxr_string">"hbase.master.executor.closeregion.threads"</span>, 5));
+<a name="518" href="#518">518</a>       <strong class="jxr_keyword">this</strong>.executorService.startExecutorService(ExecutorType.MASTER_SERVER_OPERATIONS,
+<a name="519" href="#519">519</a>         conf.getInt(<span class="jxr_string">"hbase.master.executor.serverops.threads"</span>, 3));
+<a name="520" href="#520">520</a>       <strong class="jxr_keyword">this</strong>.executorService.startExecutorService(ExecutorType.MASTER_META_SERVER_OPERATIONS,
+<a name="521" href="#521">521</a>         conf.getInt(<span class="jxr_string">"hbase.master.executor.serverops.threads"</span>, 2));
+<a name="522" href="#522">522</a>       <em class="jxr_comment">// We depend on there being only one instance of this executor running</em>
+<a name="523" href="#523">523</a>       <em class="jxr_comment">// at a time.  To do concurrency, would need fencing of enable/disable of</em>
+<a name="524" href="#524">524</a>       <em class="jxr_comment">// tables.</em>
+<a name="525" href="#525">525</a>       <strong class="jxr_keyword">this</strong>.executorService.startExecutorService(ExecutorType.MASTER_TABLE_OPERATIONS, 1);
+<a name="526" href="#526">526</a> 
+<a name="527" href="#527">527</a>       <em class="jxr_comment">// Start log cleaner thread</em>
+<a name="528" href="#528">528</a>       String n = Thread.currentThread().getName();
+<a name="529" href="#529">529</a>       <strong class="jxr_keyword">this</strong>.logCleaner =
+<a name="530" href="#530">530</a>         <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/LogCleaner.html">LogCleaner</a>(conf.getInt(<span class="jxr_string">"hbase.master.cleaner.interval"</span>, 60 * 1000),
+<a name="531" href="#531">531</a>           <strong class="jxr_keyword">this</strong>, conf, getMasterFileSystem().getFileSystem(),
+<a name="532" href="#532">532</a>           getMasterFileSystem().getOldLogDir());
+<a name="533" href="#533">533</a>       Threads.setDaemonThreadRunning(logCleaner, n + <span class="jxr_string">".oldLogCleaner"</span>);
+<a name="534" href="#534">534</a> 
+<a name="535" href="#535">535</a>       <em class="jxr_comment">// Put up info server.</em>
+<a name="536" href="#536">536</a>       <strong class="jxr_keyword">int</strong> port = <strong class="jxr_keyword">this</strong>.conf.getInt(<span class="jxr_string">"hbase.master.info.port"</span>, 60010);
+<a name="537" href="#537">537</a>       <strong class="jxr_keyword">if</strong> (port &gt;= 0) {
+<a name="538" href="#538">538</a>         String a = <strong class="jxr_keyword">this</strong>.conf.get(<span class="jxr_string">"hbase.master.info.bindAddress"</span>, <span class="jxr_string">"0.0.0.0"</span>);
+<a name="539" href="#539">539</a>         <strong class="jxr_keyword">this</strong>.infoServer = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/util/InfoServer.html">InfoServer</a>(MASTER, a, port, false);
+<a name="540" href="#540">540</a>         <strong class="jxr_keyword">this</strong>.infoServer.setAttribute(MASTER, <strong class="jxr_keyword">this</strong>);
+<a name="541" href="#541">541</a>         <strong class="jxr_keyword">this</strong>.infoServer.start();
+<a name="542" href="#542">542</a>       }
+<a name="543" href="#543">543</a>       <em class="jxr_comment">// Start allowing requests to happen.</em>
+<a name="544" href="#544">544</a>       <strong class="jxr_keyword">this</strong>.rpcServer.openServer();
+<a name="545" href="#545">545</a>       <strong class="jxr_keyword">if</strong> (LOG.isDebugEnabled()) {
+<a name="546" href="#546">546</a>         LOG.debug(<span class="jxr_string">"Started service threads"</span>);
+<a name="547" href="#547">547</a>       }
+<a name="548" href="#548">548</a>     } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a name="549" href="#549">549</a>       <strong class="jxr_keyword">if</strong> (e instanceof RemoteException) {
+<a name="550" href="#550">550</a>         e = ((RemoteException)e).unwrapRemoteException();
+<a name="551" href="#551">551</a>       }
+<a name="552" href="#552">552</a>       <em class="jxr_comment">// Something happened during startup. Shut things down.</em>
+<a name="553" href="#553">553</a>       abort(<span class="jxr_string">"Failed startup"</span>, e);
+<a name="554" href="#554">554</a>     }
+<a name="555" href="#555">555</a>   }
+<a name="556" href="#556">556</a> 
+<a name="557" href="#557">557</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> stopServiceThreads() {
+<a name="558" href="#558">558</a>     <strong class="jxr_keyword">if</strong> (LOG.isDebugEnabled()) {
+<a name="559" href="#559">559</a>       LOG.debug(<span class="jxr_string">"Stopping service threads"</span>);
+<a name="560" href="#560">560</a>     }
+<a name="561" href="#561">561</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.rpcServer != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.rpcServer.stop();
+<a name="562" href="#562">562</a>     <em class="jxr_comment">// Clean up and close up shop</em>
+<a name="563" href="#563">563</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.logCleaner!= <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.logCleaner.interrupt();
+<a name="564" href="#564">564</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.infoServer != <strong class="jxr_keyword">null</strong>) {
+<a name="565" href="#565">565</a>       LOG.info(<span class="jxr_string">"Stopping infoServer"</span>);
+<a name="566" href="#566">566</a>       <strong class="jxr_keyword">try</strong> {
+<a name="567" href="#567">567</a>         <strong class="jxr_keyword">this</strong>.infoServer.stop();
+<a name="568" href="#568">568</a>       } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a name="569" href="#569">569</a>         ex.printStackTrace();
+<a name="570" href="#570">570</a>       }
+<a name="571" href="#571">571</a>     }
+<a name="572" href="#572">572</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.executorService != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">this</strong>.executorService.shutdown();
+<a name="573" href="#573">573</a>   }
+<a name="574" href="#574">574</a> 
+<a name="575" href="#575">575</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Thread getAndStartBalancerChore(<strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/master/HMaster.html">HMaster</a> master) {
+<a name="576" href="#576">576</a>     String name = master.getServerName() + <span class="jxr_string">"-BalancerChore"</span>;
+<a name="577" href="#577">577</a>     <strong class="jxr_keyword">int</strong> period = master.getConfiguration().getInt(<span class="jxr_string">"hbase.balancer.period"</span>, 300000);
+<a name="578" href="#578">578</a>     <em class="jxr_comment">// Start up the load balancer chore</em>
+<a name="579" href="#579">579</a>     <a href="../../../../../org/apache/hadoop/hbase/Chore.html">Chore</a> chore = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/Chore.html">Chore</a>(name, period, master) {
+<a name="580" href="#580">580</a>       @Override
+<a name="581" href="#581">581</a>       <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> chore() {
+<a name="582" href="#582">582</a>         master.balance();
+<a name="583" href="#583">583</a>       }
+<a name="584" href="#584">584</a>     };
+<a name="585" href="#585">585</a>     <strong class="jxr_keyword">return</strong> Threads.setDaemonThreadRunning(chore);
+<a name="586" href="#586">586</a>   }
+<a name="587" href="#587">587</a> 
+<a name="588" href="#588">588</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> stopChores() {
+<a name="589" href="#589">589</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.balancerChore != <strong class="jxr_keyword">null</strong>) {
+<a name="590" href="#590">590</a>       <strong class="jxr_keyword">this</strong>.balancerChore.interrupt();
+<a name="591" href="#591">591</a>     }
+<a name="592" href="#592">592</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.catalogJanitorChore != <strong class="jxr_keyword">null</strong>) {
+<a name="593" href="#593">593</a>       <strong class="jxr_keyword">this</strong>.catalogJanitorChore.interrupt();
+<a name="594" href="#594">594</a>     }
+<a name="595" href="#595">595</a>   }
+<a name="596" href="#596">596</a> 
+<a name="597" href="#597">597</a>   @Override
+<a name="598" href="#598">598</a>   <strong class="jxr_keyword">public</strong> MapWritable regionServerStartup(<strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerInfo.html">HServerInfo</a> serverInfo,
+<a name="599" href="#599">599</a>     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">long</strong> serverCurrentTime)
+<a name="600" href="#600">600</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="601" href="#601">601</a>     <em class="jxr_comment">// Set the ip into the passed in serverInfo.  Its ip is more than likely</em>
+<a name="602" href="#602">602</a>     <em class="jxr_comment">// not the ip that the master sees here.  See at end of this method where</em>
+<a name="603" href="#603">603</a>     <em class="jxr_comment">// we pass it back to the regionserver by setting "hbase.regionserver.address"</em>
+<a name="604" href="#604">604</a>     <em class="jxr_comment">// Everafter, the HSI combination 'server name' is what uniquely identifies</em>
+<a name="605" href="#605">605</a>     <em class="jxr_comment">// the incoming RegionServer.</em>
+<a name="606" href="#606">606</a>     InetSocketAddress address = <strong class="jxr_keyword">new</strong> InetSocketAddress(
+<a name="607" href="#607">607</a>         HBaseServer.getRemoteIp().getHostName(),
+<a name="608" href="#608">608</a>         serverInfo.getServerAddress().getPort());
+<a name="609" href="#609">609</a>     serverInfo.setServerAddress(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HServerAddress.html">HServerAddress</a>(address));
+<a name="610" href="#610">610</a> 
+<a name="611" href="#611">611</a>     <em class="jxr_comment">// Register with server manager</em>
+<a name="612" href="#612">612</a>     <strong class="jxr_keyword">this</strong>.serverManager.regionServerStartup(serverInfo, serverCurrentTime);
+<a name="613" href="#613">613</a>     <em class="jxr_comment">// Send back some config info</em>
+<a name="614" href="#614">614</a>     MapWritable mw = createConfigurationSubset();
+<a name="615" href="#615">615</a>      mw.put(<strong class="jxr_keyword">new</strong> Text(<span class="jxr_string">"hbase.regionserver.address"</span>),
+<a name="616" href="#616">616</a>          serverInfo.getServerAddress());
+<a name="617" href="#617">617</a>     <strong class="jxr_keyword">return</strong> mw;
+<a name="618" href="#618">618</a>   }
+<a name="619" href="#619">619</a> 
+<a name="620" href="#620">620</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="621" href="#621">621</a> <em class="jxr_javadoccomment">   * @return Subset of configuration to pass initializing regionservers: e.g.</em>
+<a name="622" href="#622">622</a> <em class="jxr_javadoccomment">   * the filesystem to use and root directory to use.</em>
+<a name="623" href="#623">623</a> <em class="jxr_javadoccomment">   */</em>
+<a name="624" href="#624">624</a>   <strong class="jxr_keyword">protected</strong> MapWritable createConfigurationSubset() {
+<a name="625" href="#625">625</a>     MapWritable mw = addConfig(<strong class="jxr_keyword">new</strong> MapWritable(), HConstants.HBASE_DIR);
+<a name="626" href="#626">626</a>     <strong class="jxr_keyword">return</strong> addConfig(mw, <span class="jxr_string">"fs.default.name"</span>);
+<a name="627" href="#627">627</a>   }
+<a name="628" href="#628">628</a> 
+<a name="629" href="#629">629</a>   <strong class="jxr_keyword">private</strong> MapWritable addConfig(<strong class="jxr_keyword">final</strong> MapWritable mw, <strong class="jxr_keyword">final</strong> String key) {
+<a name="630" href="#630">630</a>     mw.put(<strong class="jxr_keyword">new</strong> Text(key), <strong class="jxr_keyword">new</strong> Text(<strong class="jxr_keyword">this</strong>.conf.get(key)));
+<a name="631" href="#631">631</a>     <strong class="jxr_keyword">return</strong> mw;
+<a name="632" href="#632">632</a>   }
+<a name="633" href="#633">633</a> 
+<a name="634" href="#634">634</a>   @Override
+<a name="635" href="#635">635</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/HMsg.html">HMsg</a> [] regionServerReport(HServerInfo serverInfo, HMsg msgs[],
+<a name="636" href="#636">636</a>     <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a>[] mostLoadedRegions)
+<a name="637" href="#637">637</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="638" href="#638">638</a>     <strong class="jxr_keyword">return</strong> adornRegionServerAnswer(serverInfo,
+<a name="639" href="#639">639</a>       <strong class="jxr_keyword">this</strong>.serverManager.regionServerReport(serverInfo, msgs, mostLoadedRegions));
+<a name="640" href="#640">640</a>   }
+<a name="641" href="#641">641</a> 
+<a name="642" href="#642">642</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="643" href="#643">643</a> <em class="jxr_javadoccomment">   * Override if you'd add messages to return to regionserver &lt;code&gt;hsi&lt;/code&gt;</em>
+<a name="644" href="#644">644</a> <em class="jxr_javadoccomment">   * or to send an exception.</em>
+<a name="645" href="#645">645</a> <em class="jxr_javadoccomment">   * @param msgs Messages to add to</em>
+<a name="646" href="#646">646</a> <em class="jxr_javadoccomment">   * @return Messages to return to</em>
+<a name="647" href="#647">647</a> <em class="jxr_javadoccomment">   * @throws IOException exceptions that were injected for the region servers</em>
+<a name="648" href="#648">648</a> <em class="jxr_javadoccomment">   */</em>
+<a name="649" href="#649">649</a>   <strong class="jxr_keyword">protected</strong> <a href="../../../../../org/apache/hadoop/hbase/HMsg.html">HMsg</a> [] adornRegionServerAnswer(<strong class="jxr_keyword">final</strong> HServerInfo hsi,
+<a name="650" href="#650">650</a>       <strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/HMsg.html">HMsg</a> [] msgs) <strong class="jxr_keyword">throws</strong> IOException {
+<a name="651" href="#651">651</a>     <strong class="jxr_keyword">return</strong> msgs;
+<a name="652" href="#652">652</a>   }
+<a name="653" href="#653">653</a> 
+<a name="654" href="#654">654</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isMasterRunning() {
+<a name="655" href="#655">655</a>     <strong class="jxr_keyword">return</strong> !isStopped();
+<a name="656" href="#656">656</a>   }
+<a name="657" href="#657">657</a> 
+<a name="658" href="#658">658</a>   @Override
+<a name="659" href="#659">659</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> balance() {
+<a name="660" href="#660">660</a>     <em class="jxr_comment">// If balance not true, don't run balancer.</em>
+<a name="661" href="#661">661</a>     <strong class="jxr_keyword">if</strong> (!<strong class="jxr_keyword">this</strong>.balanceSwitch) <strong class="jxr_keyword">return</strong> false;
+<a name="662" href="#662">662</a>     <strong class="jxr_keyword">synchronized</strong> (<strong class="jxr_keyword">this</strong>.balancer) {
+<a name="663" href="#663">663</a>       <em class="jxr_comment">// Only allow one balance run at at time.</em>
+<a name="664" href="#664">664</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.assignmentManager.isRegionsInTransition()) {
+<a name="665" href="#665">665</a>         LOG.debug(<span class="jxr_string">"Not running balancer because "</span> +
+<a name="666" href="#666">666</a>           <strong class="jxr_keyword">this</strong>.assignmentManager.getRegionsInTransition().size() +
+<a name="667" href="#667">667</a>           <span class="jxr_string">" region(s) in transition: "</span> +
+<a name="668" href="#668">668</a>           org.apache.commons.lang.StringUtils.
+<a name="669" href="#669">669</a>             abbreviate(<strong class="jxr_keyword">this</strong>.assignmentManager.getRegionsInTransition().toString(), 256));
+<a name="670" href="#670">670</a>         <strong class="jxr_keyword">return</strong> false;
+<a name="671" href="#671">671</a>       }
+<a name="672" href="#672">672</a>       <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.serverManager.areDeadServersInProgress()) {
+<a name="673" href="#673">673</a>         LOG.debug(<span class="jxr_string">"Not running balancer because processing dead regionserver(s): "</span>  +
+<a name="674" href="#674">674</a>           <strong class="jxr_keyword">this</strong>.serverManager.getDeadServers());
+<a name="675" href="#675">675</a>         <strong class="jxr_keyword">return</strong> false;
+<a name="676" href="#676">676</a>       }
+<a name="677" href="#677">677</a>       Map&lt;HServerInfo, List&lt;HRegionInfo&gt;&gt; assignments =
+<a name="678" href="#678">678</a>         <strong class="jxr_keyword">this</strong>.assignmentManager.getAssignments();
+<a name="679" href="#679">679</a>       <em class="jxr_comment">// Returned Map from AM does not include mention of servers w/o assignments.</em>
+<a name="680" href="#680">680</a>       <strong class="jxr_keyword">for</strong> (Map.Entry&lt;String, HServerInfo&gt; e:
+<a name="681" href="#681">681</a>           <strong class="jxr_keyword">this</strong>.serverManager.getOnlineServers().entrySet()) {
+<a name="682" href="#682">682</a>         <a href="../../../../../org/apache/hadoop/hbase/HServerInfo.html">HServerInfo</a> hsi = e.getValue();
+<a name="683" href="#683">683</a>         <strong class="jxr_keyword">if</strong> (!assignments.containsKey(hsi)) {
+<a name="684" href="#684">684</a>           assignments.put(hsi, <strong class="jxr_keyword">new</strong> ArrayList&lt;HRegionInfo&gt;());
+<a name="685" href="#685">685</a>         }
+<a name="686" href="#686">686</a>       }
+<a name="687" href="#687">687</a>       List&lt;RegionPlan&gt; plans = <strong class="jxr_keyword">this</strong>.balancer.balanceCluster(assignments);
+<a name="688" href="#688">688</a>       <strong class="jxr_keyword">if</strong> (plans != <strong class="jxr_keyword">null</strong> &amp;&amp; !plans.isEmpty()) {
+<a name="689" href="#689">689</a>         <strong class="jxr_keyword">for</strong> (RegionPlan plan: plans) {
+<a name="690" href="#690">690</a>           LOG.info(<span class="jxr_string">"balance "</span> + plan);
+<a name="691" href="#691">691</a>           <strong class="jxr_keyword">this</strong>.assignmentManager.balance(plan);
+<a name="692" href="#692">692</a>         }
+<a name="693" href="#693">693</a>       }
+<a name="694" href="#694">694</a>     }
+<a name="695" href="#695">695</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a name="696" href="#696">696</a>   }
+<a name="697" href="#697">697</a> 
+<a name="698" href="#698">698</a>   @Override
+<a name="699" href="#699">699</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> balanceSwitch(<strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> b) {
+<a name="700" href="#700">700</a>     <strong class="jxr_keyword">boolean</strong> oldValue = <strong class="jxr_keyword">this</strong>.balanceSwitch;
+<a name="701" href="#701">701</a>     <strong class="jxr_keyword">this</strong>.balanceSwitch = b;
+<a name="702" href="#702">702</a>     LOG.info(<span class="jxr_string">"Balance="</span> + b);
+<a name="703" href="#703">703</a>     <strong class="jxr_keyword">return</strong> oldValue;
+<a name="704" href="#704">704</a>   }
+<a name="705" href="#705">705</a> 
+<a name="706" href="#706">706</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="707" href="#707">707</a> <em class="jxr_javadoccomment">   * Switch for the background {@link CatalogJanitor} thread.</em>
+<a name="708" href="#708">708</a> <em class="jxr_javadoccomment">   * Used for testing.  The thread will continue to run.  It will just be a noop</em>
+<a name="709" href="#709">709</a> <em class="jxr_javadoccomment">   * if disabled.</em>
+<a name="710" href="#710">710</a> <em class="jxr_javadoccomment">   * @param b If false, the catalog janitor won't do anything.</em>
+<a name="711" href="#711">711</a> <em class="jxr_javadoccomment">   */</em>
+<a name="712" href="#712">712</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setCatalogJanitorEnabled(<strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> b) {
+<a name="713" href="#713">713</a>     ((<a href="../../../../../org/apache/hadoop/hbase/master/CatalogJanitor.html">CatalogJanitor</a>)<strong class="jxr_keyword">this</strong>.catalogJanitorChore).setEnabled(b);
+<a name="714" href="#714">714</a>   }
+<a name="715" href="#715">715</a> 
+<a name="716" href="#716">716</a>   @Override
+<a name="717" href="#717">717</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> move(<strong class="jxr_keyword">final</strong> byte[] encodedRegionName, <strong class="jxr_keyword">final</strong> byte[] destServerName)
+<a name="718" href="#718">718</a>   <strong class="jxr_keyword">throws</strong> <a href="../../../../../org/apache/hadoop/hbase/UnknownRegionException.html">UnknownRegionException</a> {
+<a name="719" href="#719">719</a>     Pair&lt;HRegionInfo, HServerInfo&gt; p =
+<a name="720" href="#720">720</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.getAssignment(encodedRegionName);
+<a name="721" href="#721">721</a>     <strong class="jxr_keyword">if</strong> (p == <strong class="jxr_keyword">null</strong>)
+<a name="722" href="#722">722</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/UnknownRegionException.html">UnknownRegionException</a>(Bytes.toString(encodedRegionName));
+<a name="723" href="#723">723</a>     <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> hri = p.getFirst();
+<a name="724" href="#724">724</a>     <a href="../../../../../org/apache/hadoop/hbase/HServerInfo.html">HServerInfo</a> dest = <strong class="jxr_keyword">null</strong>;
+<a name="725" href="#725">725</a>     <strong class="jxr_keyword">if</strong> (destServerName == <strong class="jxr_keyword">null</strong> || destServerName.length == 0) {
+<a name="726" href="#726">726</a>       LOG.info(<span class="jxr_string">"Passed destination servername is null/empty so "</span> +
+<a name="727" href="#727">727</a>         <span class="jxr_string">"choosing a server at random"</span>);
+<a name="728" href="#728">728</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.clearRegionPlan(hri);
+<a name="729" href="#729">729</a>       <em class="jxr_comment">// Unassign will reassign it elsewhere choosing random server.</em>
+<a name="730" href="#730">730</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.unassign(hri);
+<a name="731" href="#731">731</a>     } <strong class="jxr_keyword">else</strong> {
+<a name="732" href="#732">732</a>       dest = <strong class="jxr_keyword">this</strong>.serverManager.getServerInfo(<strong class="jxr_keyword">new</strong> String(destServerName));
+<a name="733" href="#733">733</a>       <a href="../../../../../org/apache/hadoop/hbase/master/LoadBalancer.html">RegionPlan</a> rp = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/LoadBalancer.html">RegionPlan</a>(p.getFirst(), p.getSecond(), dest);
+<a name="734" href="#734">734</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.balance(rp);
+<a name="735" href="#735">735</a>     }
+<a name="736" href="#736">736</a>   }
+<a name="737" href="#737">737</a> 
+<a name="738" href="#738">738</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> createTable(<a href="../../../../../org/apache/hadoop/hbase/HTableDescriptor.html">HTableDescriptor</a> desc, byte [][] splitKeys)
+<a name="739" href="#739">739</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="740" href="#740">740</a>     createTable(desc, splitKeys, false);
+<a name="741" href="#741">741</a>   }
+<a name="742" href="#742">742</a> 
+<a name="743" href="#743">743</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> createTable(<a href="../../../../../org/apache/hadoop/hbase/HTableDescriptor.html">HTableDescriptor</a> desc, byte [][] splitKeys,
+<a name="744" href="#744">744</a>       <strong class="jxr_keyword">boolean</strong> sync)
+<a name="745" href="#745">745</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="746" href="#746">746</a>     <strong class="jxr_keyword">if</strong> (!isMasterRunning()) {
+<a name="747" href="#747">747</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/MasterNotRunningException.html">MasterNotRunningException</a>();
+<a name="748" href="#748">748</a>     }
+<a name="749" href="#749">749</a>     <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> [] newRegions = <strong class="jxr_keyword">null</strong>;
+<a name="750" href="#750">750</a>     <strong class="jxr_keyword">if</strong>(splitKeys == <strong class="jxr_keyword">null</strong> || splitKeys.length == 0) {
+<a name="751" href="#751">751</a>       newRegions = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> [] { <strong class="jxr_keyword">new</strong> HRegionInfo(desc, <strong class="jxr_keyword">null</strong>, <strong class="jxr_keyword">null</strong>) };
+<a name="752" href="#752">752</a>     } <strong class="jxr_keyword">else</strong> {
+<a name="753" href="#753">753</a>       <strong class="jxr_keyword">int</strong> numRegions = splitKeys.length + 1;
+<a name="754" href="#754">754</a>       newRegions = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a>[numRegions];
+<a name="755" href="#755">755</a>       byte [] startKey = <strong class="jxr_keyword">null</strong>;
+<a name="756" href="#756">756</a>       byte [] endKey = <strong class="jxr_keyword">null</strong>;
+<a name="757" href="#757">757</a>       <strong class="jxr_keyword">for</strong>(<strong class="jxr_keyword">int</strong> i=0;i&lt;numRegions;i++) {
+<a name="758" href="#758">758</a>         endKey = (i == splitKeys.length) ? <strong class="jxr_keyword">null</strong> : splitKeys[i];
+<a name="759" href="#759">759</a>         newRegions[i] = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a>(desc, startKey, endKey);
+<a name="760" href="#760">760</a>         startKey = endKey;
+<a name="761" href="#761">761</a>       }
+<a name="762" href="#762">762</a>     }
+<a name="763" href="#763">763</a>     <strong class="jxr_keyword">int</strong> timeout = conf.getInt(<span class="jxr_string">"hbase.client.catalog.timeout"</span>, 10000);
+<a name="764" href="#764">764</a>     <em class="jxr_comment">// Need META availability to create a table</em>
+<a name="765" href="#765">765</a>     <strong class="jxr_keyword">try</strong> {
+<a name="766" href="#766">766</a>       <strong class="jxr_keyword">if</strong>(catalogTracker.waitForMeta(timeout) == <strong class="jxr_keyword">null</strong>) {
+<a name="767" href="#767">767</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/NotAllMetaRegionsOnlineException.html">NotAllMetaRegionsOnlineException</a>();
+<a name="768" href="#768">768</a>       }
+<a name="769" href="#769">769</a>     } <strong class="jxr_keyword">catch</strong> (InterruptedException e) {
+<a name="770" href="#770">770</a>       LOG.warn(<span class="jxr_string">"Interrupted waiting for meta availability"</span>, e);
+<a name="771" href="#771">771</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(e);
+<a name="772" href="#772">772</a>     }
+<a name="773" href="#773">773</a>     createTable(newRegions, sync);
+<a name="774" href="#774">774</a>   }
+<a name="775" href="#775">775</a> 
+<a name="776" href="#776">776</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">void</strong> createTable(<strong class="jxr_keyword">final</strong> <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> [] newRegions,
+<a name="777" href="#777">777</a>       <strong class="jxr_keyword">boolean</strong> sync)
+<a name="778" href="#778">778</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="779" href="#779">779</a>     String tableName = newRegions[0].getTableDesc().getNameAsString();
+<a name="780" href="#780">780</a>     <strong class="jxr_keyword">if</strong>(MetaReader.tableExists(catalogTracker, tableName)) {
+<a name="781" href="#781">781</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/TableExistsException.html">TableExistsException</a>(tableName);
+<a name="782" href="#782">782</a>     }
+<a name="783" href="#783">783</a>     <strong class="jxr_keyword">for</strong>(<a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> newRegion : newRegions) {
+<a name="784" href="#784">784</a> 
+<a name="785" href="#785">785</a>       <em class="jxr_comment">// 1. Set table enabling flag up in zk.</em>
+<a name="786" href="#786">786</a>       <strong class="jxr_keyword">try</strong> {
+<a name="787" href="#787">787</a>         assignmentManager.getZKTable().setEnabledTable(tableName);
+<a name="788" href="#788">788</a>       } <strong class="jxr_keyword">catch</strong> (KeeperException e) {
+<a name="789" href="#789">789</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"Unable to ensure that the table will be"</span> +
+<a name="790" href="#790">790</a>             <span class="jxr_string">" enabled because of a ZooKeeper issue"</span>, e);
+<a name="791" href="#791">791</a>       }
+<a name="792" href="#792">792</a> 
+<a name="793" href="#793">793</a>       <em class="jxr_comment">// 2. Create HRegion</em>
+<a name="794" href="#794">794</a>       <a href="../../../../../org/apache/hadoop/hbase/regionserver/HRegion.html">HRegion</a> region = HRegion.createHRegion(newRegion,
+<a name="795" href="#795">795</a>           fileSystemManager.getRootDir(), conf);
+<a name="796" href="#796">796</a> 
+<a name="797" href="#797">797</a>       <em class="jxr_comment">// 3. Insert into META</em>
+<a name="798" href="#798">798</a>       MetaEditor.addRegionToMeta(catalogTracker, region.getRegionInfo());
+<a name="799" href="#799">799</a> 
+<a name="800" href="#800">800</a>       <em class="jxr_comment">// 4. Close the new region to flush to disk.  Close log file too.</em>
+<a name="801" href="#801">801</a>       region.close();
+<a name="802" href="#802">802</a>       region.getLog().closeAndDelete();
+<a name="803" href="#803">803</a> 
+<a name="804" href="#804">804</a>       <em class="jxr_comment">// 5. Trigger immediate assignment of this region</em>
+<a name="805" href="#805">805</a>       assignmentManager.assign(region.getRegionInfo(), <strong class="jxr_keyword">true</strong>);
+<a name="806" href="#806">806</a>     }
+<a name="807" href="#807">807</a> 
+<a name="808" href="#808">808</a>     <em class="jxr_comment">// 5. If sync, wait for assignment of regions</em>
+<a name="809" href="#809">809</a>     <strong class="jxr_keyword">if</strong>(sync) {
+<a name="810" href="#810">810</a>       LOG.debug(<span class="jxr_string">"Waiting for "</span> + newRegions.length + <span class="jxr_string">" region(s) to be "</span> +
+<a name="811" href="#811">811</a>           <span class="jxr_string">"assigned before returning"</span>);
+<a name="812" href="#812">812</a>       <strong class="jxr_keyword">for</strong>(<a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> regionInfo : newRegions) {
+<a name="813" href="#813">813</a>         <strong class="jxr_keyword">try</strong> {
+<a name="814" href="#814">814</a>           assignmentManager.waitForAssignment(regionInfo);
+<a name="815" href="#815">815</a>         } <strong class="jxr_keyword">catch</strong> (InterruptedException e) {
+<a name="816" href="#816">816</a>           LOG.info(<span class="jxr_string">"Interrupted waiting for region to be assigned during "</span> +
+<a name="817" href="#817">817</a>               <span class="jxr_string">"create table call"</span>);
+<a name="818" href="#818">818</a>           <strong class="jxr_keyword">return</strong>;
+<a name="819" href="#819">819</a>         }
+<a name="820" href="#820">820</a>       }
+<a name="821" href="#821">821</a>     }
+<a name="822" href="#822">822</a>   }
+<a name="823" href="#823">823</a> 
+<a name="824" href="#824">824</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isCatalogTable(<strong class="jxr_keyword">final</strong> byte [] tableName) {
+<a name="825" href="#825">825</a>     <strong class="jxr_keyword">return</strong> Bytes.equals(tableName, HConstants.ROOT_TABLE_NAME) ||
+<a name="826" href="#826">826</a>            Bytes.equals(tableName, HConstants.META_TABLE_NAME);
+<a name="827" href="#827">827</a>   }
+<a name="828" href="#828">828</a> 
+<a name="829" href="#829">829</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> deleteTable(<strong class="jxr_keyword">final</strong> byte [] tableName) <strong class="jxr_keyword">throws</strong> IOException {
+<a name="830" href="#830">830</a>     <strong class="jxr_keyword">this</strong>.executorService.submit(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/DeleteTableHandler.html">DeleteTableHandler</a>(tableName, <strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>));
+<a name="831" href="#831">831</a>   }
+<a name="832" href="#832">832</a> 
+<a name="833" href="#833">833</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addColumn(byte [] tableName, HColumnDescriptor column)
+<a name="834" href="#834">834</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="835" href="#835">835</a>     <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/TableAddFamilyHandler.html">TableAddFamilyHandler</a>(tableName, column, <strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>).process();
+<a name="836" href="#836">836</a>   }
+<a name="837" href="#837">837</a> 
+<a name="838" href="#838">838</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> modifyColumn(byte [] tableName, HColumnDescriptor descriptor)
+<a name="839" href="#839">839</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="840" href="#840">840</a>     <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/TableModifyFamilyHandler.html">TableModifyFamilyHandler</a>(tableName, descriptor, <strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>).process();
+<a name="841" href="#841">841</a>   }
+<a name="842" href="#842">842</a> 
+<a name="843" href="#843">843</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> deleteColumn(<strong class="jxr_keyword">final</strong> byte [] tableName, <strong class="jxr_keyword">final</strong> byte [] c)
+<a name="844" href="#844">844</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="845" href="#845">845</a>     <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/TableDeleteFamilyHandler.html">TableDeleteFamilyHandler</a>(tableName, c, <strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>).process();
+<a name="846" href="#846">846</a>   }
+<a name="847" href="#847">847</a> 
+<a name="848" href="#848">848</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> enableTable(<strong class="jxr_keyword">final</strong> byte [] tableName) <strong class="jxr_keyword">throws</strong> IOException {
+<a name="849" href="#849">849</a>     <strong class="jxr_keyword">this</strong>.executorService.submit(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/EnableTableHandler.html">EnableTableHandler</a>(<strong class="jxr_keyword">this</strong>, tableName,
+<a name="850" href="#850">850</a>       catalogTracker, assignmentManager));
+<a name="851" href="#851">851</a>   }
+<a name="852" href="#852">852</a> 
+<a name="853" href="#853">853</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> disableTable(<strong class="jxr_keyword">final</strong> byte [] tableName) <strong class="jxr_keyword">throws</strong> IOException {
+<a name="854" href="#854">854</a>     <strong class="jxr_keyword">this</strong>.executorService.submit(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/DisableTableHandler.html">DisableTableHandler</a>(<strong class="jxr_keyword">this</strong>, tableName,
+<a name="855" href="#855">855</a>       catalogTracker, assignmentManager));
+<a name="856" href="#856">856</a>   }
+<a name="857" href="#857">857</a> 
+<a name="858" href="#858">858</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="859" href="#859">859</a> <em class="jxr_javadoccomment">   * Return the region and current deployment for the region containing</em>
+<a name="860" href="#860">860</a> <em class="jxr_javadoccomment">   * the given row. If the region cannot be found, returns null. If it</em>
+<a name="861" href="#861">861</a> <em class="jxr_javadoccomment">   * is found, but not currently deployed, the second element of the pair</em>
+<a name="862" href="#862">862</a> <em class="jxr_javadoccomment">   * may be null.</em>
+<a name="863" href="#863">863</a> <em class="jxr_javadoccomment">   */</em>
+<a name="864" href="#864">864</a>   Pair&lt;HRegionInfo,HServerAddress&gt; getTableRegionForRow(
+<a name="865" href="#865">865</a>       <strong class="jxr_keyword">final</strong> byte [] tableName, <strong class="jxr_keyword">final</strong> byte [] rowKey)
+<a name="866" href="#866">866</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="867" href="#867">867</a>     <strong class="jxr_keyword">final</strong> AtomicReference&lt;Pair&lt;HRegionInfo, HServerAddress&gt;&gt; result =
+<a name="868" href="#868">868</a>       <strong class="jxr_keyword">new</strong> AtomicReference&lt;Pair&lt;HRegionInfo, HServerAddress&gt;&gt;(<strong class="jxr_keyword">null</strong>);
+<a name="869" href="#869">869</a> 
+<a name="870" href="#870">870</a>     <a href="../../../../../org/apache/hadoop/hbase/client/MetaScanner.html">MetaScannerVisitor</a> visitor =
+<a name="871" href="#871">871</a>       <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/client/MetaScanner.html">MetaScannerVisitor</a>() {
+<a name="872" href="#872">872</a>         @Override
+<a name="873" href="#873">873</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> processRow(<a href="../../../../../org/apache/hadoop/hbase/client/Result.html">Result</a> data) <strong class="jxr_keyword">throws</strong> IOException {
+<a name="874" href="#874">874</a>           <strong class="jxr_keyword">if</strong> (data == <strong class="jxr_keyword">null</strong> || data.size() &lt;= 0) {
+<a name="875" href="#875">875</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a name="876" href="#876">876</a>           }
+<a name="877" href="#877">877</a>           Pair&lt;HRegionInfo, HServerAddress&gt; pair =
+<a name="878" href="#878">878</a>             MetaReader.metaRowToRegionPair(data);
+<a name="879" href="#879">879</a>           <strong class="jxr_keyword">if</strong> (pair == <strong class="jxr_keyword">null</strong>) {
+<a name="880" href="#880">880</a>             <strong class="jxr_keyword">return</strong> false;
+<a name="881" href="#881">881</a>           }
+<a name="882" href="#882">882</a>           <strong class="jxr_keyword">if</strong> (!Bytes.equals(pair.getFirst().getTableDesc().getName(),
+<a name="883" href="#883">883</a>                 tableName)) {
+<a name="884" href="#884">884</a>             <strong class="jxr_keyword">return</strong> false;
+<a name="885" href="#885">885</a>           }
+<a name="886" href="#886">886</a>           result.set(pair);
+<a name="887" href="#887">887</a>           <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a name="888" href="#888">888</a>         }
+<a name="889" href="#889">889</a>     };
+<a name="890" href="#890">890</a> 
+<a name="891" href="#891">891</a>     MetaScanner.metaScan(conf, visitor, tableName, rowKey, 1);
+<a name="892" href="#892">892</a>     <strong class="jxr_keyword">return</strong> result.get();
+<a name="893" href="#893">893</a>   }
+<a name="894" href="#894">894</a> 
+<a name="895" href="#895">895</a>   @Override
+<a name="896" href="#896">896</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> modifyTable(<strong class="jxr_keyword">final</strong> byte[] tableName, <a href="../../../../../org/apache/hadoop/hbase/HTableDescriptor.html">HTableDescriptor</a> htd)
+<a name="897" href="#897">897</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="898" href="#898">898</a>     <strong class="jxr_keyword">this</strong>.executorService.submit(<strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/handler/ModifyTableHandler.html">ModifyTableHandler</a>(tableName, htd, <strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>));
+<a name="899" href="#899">899</a>   }
+<a name="900" href="#900">900</a> 
+<a name="901" href="#901">901</a>   @Override
+<a name="902" href="#902">902</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> checkTableModifiable(<strong class="jxr_keyword">final</strong> byte [] tableName)
+<a name="903" href="#903">903</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="904" href="#904">904</a>     String tableNameStr = Bytes.toString(tableName);
+<a name="905" href="#905">905</a>     <strong class="jxr_keyword">if</strong> (isCatalogTable(tableName)) {
+<a name="906" href="#906">906</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"Can't modify catalog tables"</span>);
+<a name="907" href="#907">907</a>     }
+<a name="908" href="#908">908</a>     <strong class="jxr_keyword">if</strong> (!MetaReader.tableExists(getCatalogTracker(), tableNameStr)) {
+<a name="909" href="#909">909</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/TableNotFoundException.html">TableNotFoundException</a>(tableNameStr);
+<a name="910" href="#910">910</a>     }
+<a name="911" href="#911">911</a>     <strong class="jxr_keyword">if</strong> (!getAssignmentManager().getZKTable().
+<a name="912" href="#912">912</a>         isDisabledTable(Bytes.toString(tableName))) {
+<a name="913" href="#913">913</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/TableNotDisabledException.html">TableNotDisabledException</a>(tableName);
+<a name="914" href="#914">914</a>     }
+<a name="915" href="#915">915</a>   }
+<a name="916" href="#916">916</a> 
+<a name="917" href="#917">917</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> clearFromTransition(<a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> hri) {
+<a name="918" href="#918">918</a>     <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.assignmentManager.isRegionInTransition(hri) != <strong class="jxr_keyword">null</strong>) {
+<a name="919" href="#919">919</a>       <strong class="jxr_keyword">this</strong>.assignmentManager.clearRegionFromTransition(hri);
+<a name="920" href="#920">920</a>     }
+<a name="921" href="#921">921</a>   }
+<a name="922" href="#922">922</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="923" href="#923">923</a> <em class="jxr_javadoccomment">   * @return cluster status</em>
+<a name="924" href="#924">924</a> <em class="jxr_javadoccomment">   */</em>
+<a name="925" href="#925">925</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/ClusterStatus.html">ClusterStatus</a> getClusterStatus() {
+<a name="926" href="#926">926</a>     <a href="../../../../../org/apache/hadoop/hbase/ClusterStatus.html">ClusterStatus</a> status = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/ClusterStatus.html">ClusterStatus</a>();
+<a name="927" href="#927">927</a>     status.setHBaseVersion(VersionInfo.getVersion());
+<a name="928" href="#928">928</a>     status.setServerInfo(serverManager.getOnlineServers().values());
+<a name="929" href="#929">929</a>     status.setDeadServers(serverManager.getDeadServers());
+<a name="930" href="#930">930</a>     status.setRegionsInTransition(assignmentManager.getRegionsInTransition());
+<a name="931" href="#931">931</a>     <strong class="jxr_keyword">return</strong> status;
+<a name="932" href="#932">932</a>   }
+<a name="933" href="#933">933</a> 
+<a name="934" href="#934">934</a>   @Override
+<a name="935" href="#935">935</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> abort(<strong class="jxr_keyword">final</strong> String msg, <strong class="jxr_keyword">final</strong> Throwable t) {
+<a name="936" href="#936">936</a>     <strong class="jxr_keyword">if</strong> (t != <strong class="jxr_keyword">null</strong>) LOG.fatal(msg, t);
+<a name="937" href="#937">937</a>     <strong class="jxr_keyword">else</strong> LOG.fatal(msg);
+<a name="938" href="#938">938</a>     <strong class="jxr_keyword">this</strong>.abort = <strong class="jxr_keyword">true</strong>;
+<a name="939" href="#939">939</a>     stop(<span class="jxr_string">"Aborting"</span>);
+<a name="940" href="#940">940</a>   }
+<a name="941" href="#941">941</a> 
+<a name="942" href="#942">942</a>   @Override
+<a name="943" href="#943">943</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/zookeeper/ZooKeeperWatcher.html">ZooKeeperWatcher</a> getZooKeeper() {
+<a name="944" href="#944">944</a>     <strong class="jxr_keyword">return</strong> zooKeeper;
+<a name="945" href="#945">945</a>   }
+<a name="946" href="#946">946</a> 
+<a name="947" href="#947">947</a>   @Override
+<a name="948" href="#948">948</a>   <strong class="jxr_keyword">public</strong> String getServerName() {
+<a name="949" href="#949">949</a>     <strong class="jxr_keyword">return</strong> address.toString();
+<a name="950" href="#950">950</a>   }
+<a name="951" href="#951">951</a> 
+<a name="952" href="#952">952</a>   @Override
+<a name="953" href="#953">953</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/catalog/CatalogTracker.html">CatalogTracker</a> getCatalogTracker() {
+<a name="954" href="#954">954</a>     <strong class="jxr_keyword">return</strong> catalogTracker;
+<a name="955" href="#955">955</a>   }
+<a name="956" href="#956">956</a> 
+<a name="957" href="#957">957</a>   @Override
+<a name="958" href="#958">958</a>   <strong class="jxr_keyword">public</strong> <a href="../../../../../org/apache/hadoop/hbase/master/AssignmentManager.html">AssignmentManager</a> getAssignmentManager() {
+<a name="959" href="#959">959</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.assignmentManager;
+<a name="960" href="#960">960</a>   }
+<a name="961" href="#961">961</a> 
+<a name="962" href="#962">962</a>   @Override
+<a name="963" href="#963">963</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> shutdown() {
+<a name="964" href="#964">964</a>     <strong class="jxr_keyword">this</strong>.serverManager.shutdownCluster();
+<a name="965" href="#965">965</a>     <strong class="jxr_keyword">try</strong> {
+<a name="966" href="#966">966</a>       <strong class="jxr_keyword">this</strong>.clusterStatusTracker.setClusterDown();
+<a name="967" href="#967">967</a>     } <strong class="jxr_keyword">catch</strong> (KeeperException e) {
+<a name="968" href="#968">968</a>       LOG.error(<span class="jxr_string">"ZooKeeper exception trying to set cluster as down in ZK"</span>, e);
+<a name="969" href="#969">969</a>     }
+<a name="970" href="#970">970</a>   }
+<a name="971" href="#971">971</a> 
+<a name="972" href="#972">972</a>   @Override
+<a name="973" href="#973">973</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> stopMaster() {
+<a name="974" href="#974">974</a>     stop(<span class="jxr_string">"Stopped by "</span> + Thread.currentThread().getName());
+<a name="975" href="#975">975</a>   }
+<a name="976" href="#976">976</a> 
+<a name="977" href="#977">977</a>   @Override
+<a name="978" href="#978">978</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> stop(<strong class="jxr_keyword">final</strong> String why) {
+<a name="979" href="#979">979</a>     LOG.info(why);
+<a name="980" href="#980">980</a>     <strong class="jxr_keyword">this</strong>.stopped = <strong class="jxr_keyword">true</strong>;
+<a name="981" href="#981">981</a>     <em class="jxr_comment">// If we are a backup master, we need to interrupt wait</em>
+<a name="982" href="#982">982</a>     <strong class="jxr_keyword">synchronized</strong> (<strong class="jxr_keyword">this</strong>.activeMasterManager.clusterHasActiveMaster) {
+<a name="983" href="#983">983</a>       <strong class="jxr_keyword">this</strong>.activeMasterManager.clusterHasActiveMaster.notifyAll();
+<a name="984" href="#984">984</a>     }
+<a name="985" href="#985">985</a>   }
+<a name="986" href="#986">986</a> 
+<a name="987" href="#987">987</a>   @Override
+<a name="988" href="#988">988</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isStopped() {
+<a name="989" href="#989">989</a>     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>.stopped;
+<a name="990" href="#990">990</a>   }
+<a name="991" href="#991">991</a> 
+<a name="992" href="#992">992</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="993" href="#993">993</a> <em class="jxr_javadoccomment">   * Report whether this master is currently the active master or not.</em>
+<a name="994" href="#994">994</a> <em class="jxr_javadoccomment">   * If not active master, we are parked on ZK waiting to become active.</em>
+<a name="995" href="#995">995</a> <em class="jxr_javadoccomment">   *</em>
+<a name="996" href="#996">996</a> <em class="jxr_javadoccomment">   * This method is used for testing.</em>
+<a name="997" href="#997">997</a> <em class="jxr_javadoccomment">   *</em>
+<a name="998" href="#998">998</a> <em class="jxr_javadoccomment">   * @return true if active master, false if not.</em>
+<a name="999" href="#999">999</a> <em class="jxr_javadoccomment">   */</em>
+<a name="1000" href="#1000">1000</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isActiveMaster() {
+<a name="1001" href="#1001">1001</a>     <strong class="jxr_keyword">return</strong> isActiveMaster;
+<a name="1002" href="#1002">1002</a>   }
+<a name="1003" href="#1003">1003</a> 
+<a name="1004" href="#1004">1004</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="1005" href="#1005">1005</a> <em class="jxr_javadoccomment">   * Report whether this master has completed with its initialization and is</em>
+<a name="1006" href="#1006">1006</a> <em class="jxr_javadoccomment">   * ready.  If ready, the master is also the active master.  A standby master</em>
+<a name="1007" href="#1007">1007</a> <em class="jxr_javadoccomment">   * is never ready.</em>
+<a name="1008" href="#1008">1008</a> <em class="jxr_javadoccomment">   *</em>
+<a name="1009" href="#1009">1009</a> <em class="jxr_javadoccomment">   * This method is used for testing.</em>
+<a name="1010" href="#1010">1010</a> <em class="jxr_javadoccomment">   *</em>
+<a name="1011" href="#1011">1011</a> <em class="jxr_javadoccomment">   * @return true if master is ready to go, false if not.</em>
+<a name="1012" href="#1012">1012</a> <em class="jxr_javadoccomment">   */</em>
+<a name="1013" href="#1013">1013</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isInitialized() {
+<a name="1014" href="#1014">1014</a>     <strong class="jxr_keyword">return</strong> initialized;
+<a name="1015" href="#1015">1015</a>   }
+<a name="1016" href="#1016">1016</a> 
+<a name="1017" href="#1017">1017</a>   @Override
+<a name="1018" href="#1018">1018</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> assign(<strong class="jxr_keyword">final</strong> byte [] regionName, <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> force)
+<a name="1019" href="#1019">1019</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="1020" href="#1020">1020</a>     Pair&lt;HRegionInfo, HServerAddress&gt; pair =
+<a name="1021" href="#1021">1021</a>       MetaReader.getRegion(<strong class="jxr_keyword">this</strong>.catalogTracker, regionName);
+<a name="1022" href="#1022">1022</a>     <strong class="jxr_keyword">if</strong> (pair == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> UnknownRegionException(Bytes.toString(regionName));
+<a name="1023" href="#1023">1023</a>     assignRegion(pair.getFirst());
+<a name="1024" href="#1024">1024</a>   }
+<a name="1025" href="#1025">1025</a> 
+<a name="1026" href="#1026">1026</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> assignRegion(<a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> hri) {
+<a name="1027" href="#1027">1027</a>     assignmentManager.assign(hri, <strong class="jxr_keyword">true</strong>);
+<a name="1028" href="#1028">1028</a>   }
+<a name="1029" href="#1029">1029</a> 
+<a name="1030" href="#1030">1030</a>   @Override
+<a name="1031" href="#1031">1031</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> unassign(<strong class="jxr_keyword">final</strong> byte [] regionName, <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> force)
+<a name="1032" href="#1032">1032</a>   <strong class="jxr_keyword">throws</strong> IOException {
+<a name="1033" href="#1033">1033</a>     Pair&lt;HRegionInfo, HServerAddress&gt; pair =
+<a name="1034" href="#1034">1034</a>       MetaReader.getRegion(<strong class="jxr_keyword">this</strong>.catalogTracker, regionName);
+<a name="1035" href="#1035">1035</a>     <strong class="jxr_keyword">if</strong> (pair == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> UnknownRegionException(Bytes.toString(regionName));
+<a name="1036" href="#1036">1036</a>     <a href="../../../../../org/apache/hadoop/hbase/HRegionInfo.html">HRegionInfo</a> hri = pair.getFirst();
+<a name="1037" href="#1037">1037</a>     <strong class="jxr_keyword">if</strong> (force) <strong class="jxr_keyword">this</strong>.assignmentManager.clearRegionFromTransition(hri);
+<a name="1038" href="#1038">1038</a>     <strong class="jxr_keyword">this</strong>.assignmentManager.unassign(hri, force);
+<a name="1039" href="#1039">1039</a>   }
+<a name="1040" href="#1040">1040</a> 
+<a name="1041" href="#1041">1041</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="1042" href="#1042">1042</a> <em class="jxr_javadoccomment">   * Utility for constructing an instance of the passed HMaster class.</em>
+<a name="1043" href="#1043">1043</a> <em class="jxr_javadoccomment">   * @param masterClass</em>
+<a name="1044" href="#1044">1044</a> <em class="jxr_javadoccomment">   * @param conf</em>
+<a name="1045" href="#1045">1045</a> <em class="jxr_javadoccomment">   * @return HMaster instance.</em>
+<a name="1046" href="#1046">1046</a> <em class="jxr_javadoccomment">   */</em>
+<a name="1047" href="#1047">1047</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../org/apache/hadoop/hbase/master/HMaster.html">HMaster</a> constructMaster(Class&lt;? <strong class="jxr_keyword">extends</strong> HMaster&gt; masterClass,
+<a name="1048" href="#1048">1048</a>       <strong class="jxr_keyword">final</strong> Configuration conf)  {
+<a name="1049" href="#1049">1049</a>     <strong class="jxr_keyword">try</strong> {
+<a name="1050" href="#1050">1050</a>       Constructor&lt;? <strong class="jxr_keyword">extends</strong> HMaster&gt; c =
+<a name="1051" href="#1051">1051</a>         masterClass.getConstructor(Configuration.<strong class="jxr_keyword">class</strong>);
+<a name="1052" href="#1052">1052</a>       <strong class="jxr_keyword">return</strong> c.newInstance(conf);
+<a name="1053" href="#1053">1053</a>     } <strong class="jxr_keyword">catch</strong> (InvocationTargetException ite) {
+<a name="1054" href="#1054">1054</a>       Throwable target = ite.getTargetException() != <strong class="jxr_keyword">null</strong>?
+<a name="1055" href="#1055">1055</a>         ite.getTargetException(): ite;
+<a name="1056" href="#1056">1056</a>       <strong class="jxr_keyword">if</strong> (target.getCause() != <strong class="jxr_keyword">null</strong>) target = target.getCause();
+<a name="1057" href="#1057">1057</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(<span class="jxr_string">"Failed construction of Master: "</span> +
+<a name="1058" href="#1058">1058</a>         masterClass.toString(), target);
+<a name="1059" href="#1059">1059</a>     } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a name="1060" href="#1060">1060</a>       <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(<span class="jxr_string">"Failed construction of Master: "</span> +
+<a name="1061" href="#1061">1061</a>         masterClass.toString() + ((e.getCause() != <strong class="jxr_keyword">null</strong>)?
+<a name="1062" href="#1062">1062</a>           e.getCause().getMessage(): <span class="jxr_string">""</span>), e);
+<a name="1063" href="#1063">1063</a>     }
+<a name="1064" href="#1064">1064</a>   }
+<a name="1065" href="#1065">1065</a> 
+<a name="1066" href="#1066">1066</a> 
+<a name="1067" href="#1067">1067</a>   <em class="jxr_javadoccomment">/**</em>
+<a name="1068" href="#1068">1068</a> <em class="jxr_javadoccomment">   * @see org.apache.hadoop.hbase.master.HMasterCommandLine</em>
+<a name="1069" href="#1069">1069</a> <em class="jxr_javadoccomment">   */</em>
+<a name="1070" href="#1070">1070</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> main(String [] args) <strong class="jxr_keyword">throws</strong> Exception {
+<a name="1071" href="#1071">1071</a>     <strong class="jxr_keyword">new</strong> <a href="../../../../../org/apache/hadoop/hbase/master/HMasterCommandLine.html">HMasterCommandLine</a>(HMaster.<strong class="jxr_keyword">class</strong>).doMain(args);
+<a name="1072" href="#1072">1072</a>   }
+<a name="1073" href="#1073">1073</a> }
+</pre>
+<hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
+</html>
+

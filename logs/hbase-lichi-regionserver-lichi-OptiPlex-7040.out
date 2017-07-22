@@ -1,0 +1,126 @@
+Java HotSpot(TM) 64-Bit Server VM warning: Using incremental CMS is deprecated and will likely be removed in a future release
+Controller initialized
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/home/lichi/.m2/repository/org/slf4j/slf4j-log4j12/1.5.8/slf4j-log4j12-1.5.8.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/home/lichi/hadoop/hbase-0.90.0/lib/slf4j-log4j12-1.5.8.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+stage: -1
+stage: 0
+stage: 1
+stage: 2
+stage: 3
+0 0.1 2.087618E7
+1 0.19333333333333336 1.3631902E7
+2 0.2866666666666667 8722327.0
+3 0.38 3516447.0
+alpha: -6.105940071428572E7
+stage: 4
+[PUT],2.24,0.350
+stage: 4
+[PUT],3.83,0.337
+stage: 4
+[PUT],3.45,0.327
+stage: 4
+[PUT],4.64,0.316
+stage: 4
+[PUT],3.91,0.308
+stage: 4
+[PUT],4.55,0.298
+stage: 4
+[PUT],4.92,0.289
+stage: 4
+[PUT],5.79,0.280
+stage: 4
+[PUT],6.27,0.274
+stage: 4
+[PUT],6.00,0.267
+stage: 4
+[PUT],6.23,0.261
+stage: 4
+[PUT],6.34,0.255
+stage: 4
+[PUT],7.77,0.249
+stage: 4
+[PUT],9.17,0.245
+stage: 4
+[PUT],9.70,0.244
+stage: 4
+[PUT],8.55,0.243
+stage: 4
+[PUT],8.97,0.241
+stage: 4
+[PUT],9.60,0.239
+stage: 4
+[PUT],9.04,0.239
+stage: 4
+[PUT],7.49,0.237
+stage: 4
+[PUT],9.72,0.233
+stage: 4
+[PUT],9.72,0.232
+stage: 4
+[PUT],9.40,0.232
+stage: 4
+[PUT],7.06,0.231
+stage: 4
+[PUT],9.34,0.226
+stage: 4
+[PUT],9.39,0.225
+stage: 4
+[PUT],10.42,0.224
+stage: 4
+[PUT],7.99,0.225
+stage: 4
+[PUT],9.04,0.221
+stage: 4
+[PUT],10.81,0.220
+stage: 4
+[PUT],10.26,0.221
+stage: 4
+[PUT],8.86,0.222
+stage: 4
+[PUT],10.04,0.220
+stage: 4
+[PUT],10.41,0.220
+stage: 4
+[PUT],10.26,0.220
+stage: 4
+[PUT],10.29,0.221
+stage: 4
+[PUT],10.23,0.221
+stage: 4
+[PUT],11.40,0.222
+stage: 4
+[PUT],8.31,0.224
+stage: 4
+[PUT],9.23,0.221
+stage: 4
+[PUT],8.53,0.220
+stage: 4
+[PUT],10.20,0.218
+stage: 4
+[PUT],8.97,0.218
+stage: 4
+[PUT],9.78,0.216
+stage: 4
+[PUT],10.60,0.216
+stage: 4
+[PUT],10.32,0.217
+stage: 4
+[PUT],10.41,0.217
+stage: 4
+[PUT],10.86,0.218
+stage: 4
+[PUT],7.44,0.219
+stage: 4
+[PUT],11.85,0.215
+stage: 4
+[PUT],10.20,0.218
+stage: 4
+[PUT],10.07,0.219
+stage: 4
+[PUT],10.85,0.219
+stage: 4
+[PUT],10.12,0.220
+stage: 4
+[PUT],9.87,0.220

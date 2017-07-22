@@ -1,0 +1,39 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Appendix&nbsp;C.&nbsp;FAQ</title><link rel="stylesheet" href="css/freebsd_docbook.css" type="text/css"><meta name="generator" content="DocBook XSL-NS Stylesheets V1.75.2"><link rel="home" href="book.html" title="The Apache HBase Book"><link rel="up" href="book.html" title="The Apache HBase Book"><link rel="prev" href="hbase.regionserver.codecs.html" title="B.2.&nbsp; hbase.regionserver.codecs"><link rel="next" href="book_index.html" title="Index"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Appendix&nbsp;C.&nbsp;FAQ</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="hbase.regionserver.codecs.html">Prev</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="book_index.html">Next</a></td></tr></table><hr></div><div class="appendix" title="Appendix&nbsp;C.&nbsp;FAQ"><div class="titlepage"><div><div><h2 class="title"><a name="faq"></a>Appendix&nbsp;C.&nbsp;FAQ</h2></div></div></div><div class="qandaset" title="Frequently Asked Questions"><a name="d0e2648"></a><dl><dt>C.1.  <a href="faq.html#d0e2649">General</a></dt><dd><dl><dt> <a href="faq.html#d0e2652">Are there other HBase FAQs?</a></dt></dl></dd><dt>C.2.  <a href="faq.html#ec2">EC2</a></dt><dd><dl><dt> <a href="faq.html#d0e2671">
+            Why doesn't my remote java connection into my ec2 cluster work?
+            </a></dt></dl></dd><dt>C.3.  <a href="faq.html#d0e2681">Building HBase</a></dt><dd><dl><dt> <a href="faq.html#d0e2684">
+When I build, why do I always get Unable to find resource 'VM_global_library.vm'?
+            </a></dt></dl></dd><dt>C.4.  <a href="faq.html#d0e2697">Upgrading your HBase</a></dt><dd><dl><dt> <a href="faq.html#d0e2700">
+            Whats involved upgrading to HBase 0.90.x from 0.89.x or from 0.20.x?
+            </a></dt></dl></dd></dl><table border="0" width="100%" summary="Q and A Set"><col align="left" width="1%"><col><tbody><tr class="qandadiv"><td align="left" valign="top" colspan="2"><h3 class="title"><a name="d0e2649"></a>C.1. General</h3></td></tr><tr class="toc"><td align="left" valign="top" colspan="2"><dl><dt> <a href="faq.html#d0e2652">Are there other HBase FAQs?</a></dt></dl></td></tr><tr class="question"><td align="left" valign="top"><a name="d0e2652"></a><a name="d0e2653"></a></td><td align="left" valign="top"><p>Are there other HBase FAQs?</p></td></tr><tr class="answer"><td align="left" valign="top"></td><td align="left" valign="top"><p>
+              See the FAQ that is up on the wiki, <a class="link" href="http://wiki.apache.org/hadoop/Hbase/FAQ" target="_top">HBase Wiki FAQ</a>
+              as well as the <a class="link" href="http://wiki.apache.org/hadoop/Hbase/Troubleshooting" target="_top">Troubleshooting</a> page and
+              the <a class="link" href="http://wiki.apache.org/hadoop/Hbase/FrequentlySeenErrors" target="_top">Frequently Seen Errors</a> page.
+                </p></td></tr><tr class="qandadiv"><td align="left" valign="top" colspan="2"><h3 class="title"><a name="ec2"></a>C.2. EC2</h3></td></tr><tr class="toc"><td align="left" valign="top" colspan="2"><dl><dt> <a href="faq.html#d0e2671">
+            Why doesn't my remote java connection into my ec2 cluster work?
+            </a></dt></dl></td></tr><tr class="question"><td align="left" valign="top"><a name="d0e2671"></a><a name="d0e2672"></a></td><td align="left" valign="top"><p>
+            Why doesn't my remote java connection into my ec2 cluster work?
+            </p></td></tr><tr class="answer"><td align="left" valign="top"></td><td align="left" valign="top"><p>
+          See Andrew's answer here, up on the user list: <a class="link" href="http://search-hadoop.com/m/sPdqNFAwyg2" target="_top">Remote Java client connection into EC2 instance</a>.
+                </p></td></tr><tr class="qandadiv"><td align="left" valign="top" colspan="2"><h3 class="title"><a name="d0e2681"></a>C.3. Building HBase</h3></td></tr><tr class="toc"><td align="left" valign="top" colspan="2"><dl><dt> <a href="faq.html#d0e2684">
+When I build, why do I always get Unable to find resource 'VM_global_library.vm'?
+            </a></dt></dl></td></tr><tr class="question"><td align="left" valign="top"><a name="d0e2684"></a><a name="d0e2685"></a></td><td align="left" valign="top"><p>
+When I build, why do I always get <code class="code">Unable to find resource 'VM_global_library.vm'</code>?
+            </p></td></tr><tr class="answer"><td align="left" valign="top"></td><td align="left" valign="top"><p>
+                    Ignore it.  Its not an error.  It is <a class="link" href="http://jira.codehaus.org/browse/MSITE-286" target="_top">officially ugly</a> though.
+                </p></td></tr><tr class="qandadiv"><td align="left" valign="top" colspan="2"><h3 class="title"><a name="d0e2697"></a>C.4. Upgrading your HBase</h3></td></tr><tr class="toc"><td align="left" valign="top" colspan="2"><dl><dt> <a href="faq.html#d0e2700">
+            Whats involved upgrading to HBase 0.90.x from 0.89.x or from 0.20.x?
+            </a></dt></dl></td></tr><tr class="question"><td align="left" valign="top"><a name="d0e2700"></a><a name="0_90_upgrade"></a></td><td align="left" valign="top"><p>
+            Whats involved upgrading to HBase 0.90.x from 0.89.x or from 0.20.x?
+            </p></td></tr><tr class="answer"><td align="left" valign="top"></td><td align="left" valign="top"><p>This version of 0.90.x HBase can be started on data written by
+              HBase 0.20.x or HBase 0.89.x.  There is no need of a migration step.
+              HBase 0.89.x and 0.90.x does write out the name of region directories
+              differently -- it names them with a md5 hash of the region name rather
+              than a jenkins hash -- so this means that once started, there is no
+              going back to HBase 0.20.x.
+          </p></td></tr></tbody></table></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="hbase.regionserver.codecs.html">Prev</a>&nbsp;</td><td width="20%" align="center">&nbsp;</td><td width="40%" align="right">&nbsp;<a accesskey="n" href="book_index.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">B.2.&nbsp;
+    <code class="varname">
+    hbase.regionserver.codecs
+    </code>
+    &nbsp;</td><td width="20%" align="center"><a accesskey="h" href="book.html">Home</a></td><td width="40%" align="right" valign="top">&nbsp;Index</td></tr></table></div></body></html>
