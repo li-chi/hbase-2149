@@ -2527,6 +2527,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     int no = getNo();
     //LOG.debug("start update "+no);
     long st=System.nanoTime();
+    boolean isPut = false;
     MultiResponse response = new MultiResponse();
 
     for (Map.Entry<byte[], List<Action>> e : multi.actions.entrySet()) {
@@ -2549,6 +2550,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
           } else if (action instanceof Get) {
             response.add(regionName, originalIndex, get(regionName, (Get) action));
           } else if (action instanceof Put) {
+            isPut = true;
             puts.add(a);  // wont throw.
           } else {
             LOG.debug("Error: invalid Action, row must be a Get, Delete or Put.");
@@ -2616,7 +2618,9 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     int latency = (int) ((System.nanoTime() - st)/1000);
     //System.out.println("Update,"+no+","+latency);
     //LOG.debug("Update,"+no+","+latency);
-    llc.addLatency(latency);
+    if (isPut) {
+      llc.addLatency(latency);
+    }
     return response;
   }
 

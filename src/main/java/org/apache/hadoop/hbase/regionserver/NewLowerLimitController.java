@@ -5,6 +5,7 @@ import java.lang.management.ManagementFactory;
 import org.apache.hadoop.hbase.util.Threads;
 import java.util.Queue;
 import java.util.LinkedList;
+import static java.lang.Math.sqrt;
 
 public class NewLowerLimitController implements Runnable {
 
@@ -17,19 +18,24 @@ public class NewLowerLimitController implements Runnable {
 	private double lower;
 	private boolean debugMode = false;
 	private Queue<Integer> latencyQueue;
-	private double alpha = 0.0;
-	private int length = 4;
+	private double alpha = -42035441.78571428;
+	private int length = 8;
 	private double x[];
 	private double y[];
 	private int stage;
 	private int worstLatency = 0;
 	private double GOAL = 10000000;
-	private double P = 0.9;
+	private double P = 0.5932906813368315;
+	private int numViolations = 0;
+	private long VIOLATION = 1000000;
+    private int WORKLOAD_COUNT = 50000;
+    private int count = 0;
+    private int tempcount = 0;
 
 	public NewLowerLimitController(final HRegionServer _server, final Configuration conf) {
 		System.out.println("Controller initialized");
 		server = _server;
-		lower = defLower = conf.getFloat(LOWER_KEY, 0.25f);
+		lower = defLower = conf.getFloat(LOWER_KEY, 0.32f);
 		latencyQueue = new LinkedList<Integer>();
 		x = new double[length];
 		y = new double[length];
@@ -37,7 +43,7 @@ public class NewLowerLimitController implements Runnable {
 		for (int i=0; i<length; i++) {
 			x[i] = LOWEST_LIMIT + i * step;
 		}
-		stage = -1;
+		stage = 0;
 	}
 
 /*
@@ -54,10 +60,56 @@ public class NewLowerLimitController implements Runnable {
 
 	private long computeLower(double worstLatency_) {
 		double newLower = lower + (1-P)/alpha * (GOAL - worstLatency_);
-		System.out.printf("[PUT],%.2f,%.3f\n", worstLatency_/(double)1000000, lower);
-		lower = newLower;
+		System.out.printf("[PUT],%d,%.2f,%.3f,%d,%d\n",System.nanoTime(), 
+            worstLatency_/(double)1000000, lower,numViolations, (long)GOAL/1000000);
+		//lower = newLower;
 		return (long)(lower * memMax);
 	}
+
+    double getMean(double a[]) {
+        double sum = 0.0;
+        for (int i=0; i<a.length; i++) {
+            sum += a[i];
+        }
+        return sum / (double)a.length;
+    }
+
+    double getMin(double a[]) {
+        double min = Double.MAX_VALUE;
+        for (int i=0; i<a.length; i++) {
+            if (a[i] < min) {
+                min = a[i];
+            }
+         }
+         return min;
+    }
+
+    private void computeP() {
+        double[] yy = new double[length];
+        double ymin = getMin(y);
+        for (int i=0; i<y.length; i++) {
+            yy[i] = y[i] - ymin;
+        }
+        double stand = getStand(yy);
+        double delta = stand / getMean(yy);
+        P = 1.0 - 2.0 / delta / 3.0;
+        if (P < 0 || P > 1) {
+            P = 0.5;
+        }
+        System.out.println("P:"+P+" delta:"+delta);
+    }
+
+    double getStand(double[] a) {
+        return getStand(a, getMean(a));
+    }
+
+    double getStand(double[] a, double m) {
+        double sum = 0;
+        for (int i=0; i<a.length; i++) {
+            sum += (a[i]-m)*(a[i]-m);
+        }
+        return Math.sqrt(sum);
+    }
 
 	private void computeAlpha() {
 		for (int i=0; i<length; i++) {
@@ -78,10 +130,17 @@ public class NewLowerLimitController implements Runnable {
 			if (stage>=0) {
 				y[stage] = worstLatency_;
 			}
-			return (long)(x[++stage] * memMax);
+            if (tempcount++ > 4) {
+                stage++;
+                if (worstLatency_ == 0) {
+                    stage--;
+                }
+            }
+			return (long)(x[1+stage] * memMax);
 		} else if (stage == length-1) {
 			y[stage] = worstLatency_;
 			computeAlpha();
+            computeP();
 			stage++;
 			return (long)(defLower * memMax);
 		} else {
@@ -91,9 +150,19 @@ public class NewLowerLimitController implements Runnable {
 
 	public synchronized void addLatency(int latency) {
 		//this.latencyQueue.add(latency);
+        //System.out.println("[data],"+latency);
+		if (latency > VIOLATION) {
+			numViolations++;
+		}
+
 		if (latency > worstLatency) {
 			worstLatency = latency;
 		}
+
+        count++;
+        if (count > WORKLOAD_COUNT) {
+            GOAL = 5000000;
+        }
 	}
 
 	public void run() {
@@ -226,5 +295,4 @@ class LinearRegression {
         s.append("  (R^2 = " + String.format("%.3f", R2()) + ")");
         return s.toString();
     }
-
 }
